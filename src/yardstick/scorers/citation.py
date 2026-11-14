@@ -7,7 +7,11 @@ from yardstick.models import Output
 from yardstick.scorers.base import Outcome, ScorerConfigError, normalize_text, unknown_options
 
 #: Citation syntax in outputs: [[source-id: "quoted fragment"]]
-CITATION = re.compile(r"\[\[\s*([A-Za-z0-9_.\-]+)\s*:\s*\"([^\"]+)\"\s*\]\]")
+CITATION = re.compile(r"\[\[\s*([A-Za-z0-9_.\-]+)\s*:\s*\"([^\"]*)\"\s*\]\]")
+
+#: A quote shorter than this after normalization (empty, whitespace-only, one character) is a substring of
+#: almost any source, so it can never count as grounded. See DECISIONS D-20.
+MIN_QUOTE_CHARS = 2
 
 
 def _norm(s: str) -> str:
@@ -17,6 +21,7 @@ def _norm(s: str) -> str:
 class CitationGrounded:
     """Every citation ``[[id: "quote"]]`` names a known source and its quote appears in that source text.
 
+    A quote shorter than ``MIN_QUOTE_CHARS`` after normalization is never grounded.
     ``expected`` is ``{"sources": {id: text}}``. Zero citations fails (``min_citations`` option, default 1).
     Score = grounded citations / citations.
     """
@@ -43,6 +48,8 @@ class CitationGrounded:
             src = sources.get(sid)
             if src is None:
                 bad.append(f"{sid}: unknown source")
+            elif len(_norm(quote)) < MIN_QUOTE_CHARS:
+                bad.append(f"{sid}: quote too short")
             elif _norm(quote) not in _norm(src):
                 bad.append(f"{sid}: quote not found")
         score = (len(cites) - len(bad)) / len(cites)

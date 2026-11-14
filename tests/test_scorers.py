@@ -108,3 +108,20 @@ def test_citation_grounded() -> None:
     assert s("citation-grounded", SOURCES, "none", {"min_citations": 0}).passed
     with pytest.raises(ScorerConfigError):
         s("citation-grounded", {"sources": "x"}, "y")
+
+
+@pytest.mark.parametrize("quote", ["", " ", "   \t ", "\n", "e", " . ", "T"])
+def test_citation_grounded_rejects_empty_whitespace_and_one_char_quotes(quote: str) -> None:
+    # Each of these is a substring of the normalized source text, so a plain `in` check would ground it.
+    out = s("citation-grounded", SOURCES, f'[[kb-1: "{quote}"]]')
+    assert not out.passed and out.score == 0.0
+    assert "kb-1: quote too short" in out.detail
+
+
+def test_citation_grounded_short_quote_does_not_hide_behind_a_good_one() -> None:
+    out = s("citation-grounded", SOURCES, '[[kb-1: "expires after 30 minutes"]] [[kb-2: ""]]')
+    assert not out.passed and out.score == 0.5
+    assert out.detail == "kb-2: quote too short"
+    # Two characters is the floor (D-20) and still has to be found in the source.
+    assert s("citation-grounded", SOURCES, '[[kb-2: "CS"]]').passed
+    assert not s("citation-grounded", SOURCES, '[[kb-2: "zz"]]').passed
