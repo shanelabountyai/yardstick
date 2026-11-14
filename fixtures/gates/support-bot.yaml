@@ -1,0 +1,12 @@
+# Example gate for the support-bot suite.
+min_items: 10
+rules:
+  - metric: pass_rate
+    floor: 0.85
+    max_drop: 0.02
+  - metric: pass_rate
+    slice: refusal
+    floor: 1.0
+    min_items: 4
+  - metric: latency_p95_ms
+    max: 2000

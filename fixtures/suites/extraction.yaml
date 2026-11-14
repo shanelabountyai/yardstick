@@ -1,0 +1,82 @@
+# Synthetic extraction suite for Yardstick Phase 1. Invented invoices; no real data.
+name: extraction
+description: Extract vendor, invoice number, currency and total from invoice text as JSON.
+scorers:
+  - name: json-schema
+  - name: regex
+    key: invoice-number
+    options: {ignore_case: false}
+  - name: numeric-tolerance
+    key: total
+    options: {field: total, abs_tol: 0.01}
+items:
+  - id: inv-001
+    slices: [simple]
+    input: {text: "INVOICE NW-1001\nFrom: Northwind Traders\nAmount due: 1,250.00 USD"}
+    expected:
+      json-schema: {"type": "object", "required": ["vendor", "invoice_number", "currency", "total"], "properties": {"vendor": {"type": "string", "minLength": 1}, "invoice_number": {"type": "string"}, "currency": {"type": "string", "enum": ["USD", "EUR", "GBP"]}, "total": {"type": "number", "minimum": 0}}, "additionalProperties": false}
+      invoice-number: '"invoice_number":"NW-1001"'
+      total: 1250.0
+  - id: inv-002
+    slices: [simple]
+    input: {text: "INVOICE CT-0042\nFrom: Contoso Ltd\nAmount due: 89.90 EUR"}
+    expected:
+      json-schema: {"type": "object", "required": ["vendor", "invoice_number", "currency", "total"], "properties": {"vendor": {"type": "string", "minLength": 1}, "invoice_number": {"type": "string"}, "currency": {"type": "string", "enum": ["USD", "EUR", "GBP"]}, "total": {"type": "number", "minimum": 0}}, "additionalProperties": false}
+      invoice-number: '"invoice_number":"CT-0042"'
+      total: 89.9
+  - id: inv-003
+    slices: [simple]
+    input: {text: "INVOICE FB-7781\nFrom: Fabrikam Inc\nAmount due: 15,000.00 USD"}
+    expected:
+      json-schema: {"type": "object", "required": ["vendor", "invoice_number", "currency", "total"], "properties": {"vendor": {"type": "string", "minLength": 1}, "invoice_number": {"type": "string"}, "currency": {"type": "string", "enum": ["USD", "EUR", "GBP"]}, "total": {"type": "number", "minimum": 0}}, "additionalProperties": false}
+      invoice-number: '"invoice_number":"FB-7781"'
+      total: 15000.0
+  - id: inv-004
+    slices: [simple]
+    input: {text: "INVOICE GX-2210\nFrom: Globex Supply\nAmount due: 432.10 GBP"}
+    expected:
+      json-schema: {"type": "object", "required": ["vendor", "invoice_number", "currency", "total"], "properties": {"vendor": {"type": "string", "minLength": 1}, "invoice_number": {"type": "string"}, "currency": {"type": "string", "enum": ["USD", "EUR", "GBP"]}, "total": {"type": "number", "minimum": 0}}, "additionalProperties": false}
+      invoice-number: '"invoice_number":"GX-2210"'
+      total: 432.1
+  - id: inv-005
+    slices: [edge]
+    input: {text: "INVOICE IT-0099\nFrom: Initech\nAmount due: 2.50 USD"}
+    expected:
+      json-schema: {"type": "object", "required": ["vendor", "invoice_number", "currency", "total"], "properties": {"vendor": {"type": "string", "minLength": 1}, "invoice_number": {"type": "string"}, "currency": {"type": "string", "enum": ["USD", "EUR", "GBP"]}, "total": {"type": "number", "minimum": 0}}, "additionalProperties": false}
+      invoice-number: '"invoice_number":"IT-0099"'
+      total: 2.5
+  - id: inv-006
+    slices: [edge]
+    input: {text: "INVOICE UL-5150\nFrom: Umbrella Labs\nAmount due: 98,765.43 USD"}
+    expected:
+      json-schema: {"type": "object", "required": ["vendor", "invoice_number", "currency", "total"], "properties": {"vendor": {"type": "string", "minLength": 1}, "invoice_number": {"type": "string"}, "currency": {"type": "string", "enum": ["USD", "EUR", "GBP"]}, "total": {"type": "number", "minimum": 0}}, "additionalProperties": false}
+      invoice-number: '"invoice_number":"UL-5150"'
+      total: 98765.43
+  - id: inv-007
+    slices: [edge]
+    input: {text: "INVOICE SP-3000\nFrom: Stark Parts\nAmount due: 1,000.00 EUR"}
+    expected:
+      json-schema: {"type": "object", "required": ["vendor", "invoice_number", "currency", "total"], "properties": {"vendor": {"type": "string", "minLength": 1}, "invoice_number": {"type": "string"}, "currency": {"type": "string", "enum": ["USD", "EUR", "GBP"]}, "total": {"type": "number", "minimum": 0}}, "additionalProperties": false}
+      invoice-number: '"invoice_number":"SP-3000"'
+      total: 1000.0
+  - id: inv-008
+    slices: [multi-line]
+    input: {text: "INVOICE WF-1939\nFrom: Wayne Freight\nAmount due: 310.00 USD"}
+    expected:
+      json-schema: {"type": "object", "required": ["vendor", "invoice_number", "currency", "total"], "properties": {"vendor": {"type": "string", "minLength": 1}, "invoice_number": {"type": "string"}, "currency": {"type": "string", "enum": ["USD", "EUR", "GBP"]}, "total": {"type": "number", "minimum": 0}}, "additionalProperties": false}
+      invoice-number: '"invoice_number":"WF-1939"'
+      total: 310.0
+  - id: inv-009
+    slices: [multi-line]
+    input: {text: "INVOICE HS-0404\nFrom: Hooli Services\nAmount due: 7,420.18 USD"}
+    expected:
+      json-schema: {"type": "object", "required": ["vendor", "invoice_number", "currency", "total"], "properties": {"vendor": {"type": "string", "minLength": 1}, "invoice_number": {"type": "string"}, "currency": {"type": "string", "enum": ["USD", "EUR", "GBP"]}, "total": {"type": "number", "minimum": 0}}, "additionalProperties": false}
+      invoice-number: '"invoice_number":"HS-0404"'
+      total: 7420.18
+  - id: inv-010
+    slices: [multi-line]
+    input: {text: "INVOICE VI-1997\nFrom: Vandelay Imports\nAmount due: 640.00 USD"}
+    expected:
+      json-schema: {"type": "object", "required": ["vendor", "invoice_number", "currency", "total"], "properties": {"vendor": {"type": "string", "minLength": 1}, "invoice_number": {"type": "string"}, "currency": {"type": "string", "enum": ["USD", "EUR", "GBP"]}, "total": {"type": "number", "minimum": 0}}, "additionalProperties": false}
+      invoice-number: '"invoice_number":"VI-1997"'
+      total: 640.0
