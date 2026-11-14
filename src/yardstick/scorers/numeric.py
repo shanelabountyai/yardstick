@@ -8,7 +8,19 @@ from typing import Any
 from yardstick.models import Output
 from yardstick.scorers.base import Outcome, ScorerConfigError, unknown_options
 
-_NUMBER = re.compile(r"-?\d+(?:,\d{3})*(?:\.\d+)?(?:[eE][-+]?\d+)?")
+#: A free-text number (DECISIONS D-21). Quantifiers are possessive so a rejected token is never re-read
+#: as a shorter number.
+_NUMBER = re.compile(
+    r"""
+    (?<![\w.,/\-])                      # not glued to an identifier (INV-2026), a date, or another number
+    -?                                  # minus only when it is not a hyphen inside a word (see lookbehind)
+    (?:\d++(?:,\d{3})*+(?:\.\d++)?+     # 1,250.00
+      |\.\d++)                          # .5
+    (?:[eE][-+]?\d++)?+                 # 1e-3
+    (?![\d]|[.\-/]\d)                    # not the first part of a date (2026-11-14, 11/14/2026, 14.11.2026)
+    """,
+    re.VERBOSE,
+)
 
 
 def first_number(text: str) -> float | None:

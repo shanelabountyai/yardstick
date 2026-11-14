@@ -7,6 +7,7 @@ import pytest
 from yardstick.models import Output
 from yardstick.scorers import ScorerConfigError, get_scorer, scorer_names
 from yardstick.scorers.base import Outcome
+from yardstick.scorers.numeric import first_number
 
 
 def s(name: str, expected: Any, text: str = "", options: dict[str, Any] | None = None, **out: Any) -> Outcome:
@@ -72,6 +73,49 @@ def test_numeric_tolerance() -> None:
         s("numeric-tolerance", True, "1")
     with pytest.raises(ScorerConfigError):
         s("numeric-tolerance", 1, "1", {"abs_tol": -1})
+
+
+@pytest.mark.parametrize(
+    ("text", "want"),
+    [
+        # A hyphen inside an identifier is not a minus sign, and the identifier is not a number.
+        ("INV-2026", None),
+        ("Invoice INV-2026: total 150", 150.0),
+        ("INV2026 total 150", 150.0),
+        # Dates are skipped, not read as their first part.
+        ("2026-11-14", None),
+        ("Paid on 2026-11-14: 42", 42.0),
+        ("Paid on 11/14/2026: 42", 42.0),
+        ("Paid on 14.11.2026: 42", 42.0),
+        # A leading decimal point is kept.
+        (".5", 0.5),
+        ("ratio .5", 0.5),
+        ("-.5", -0.5),
+        # Existing behaviour is unchanged.
+        ("total is -3", -3.0),
+        ("(-4)", -4.0),
+        ("x=-3", -3.0),
+        ("1,250.00 USD", 1250.0),
+        ("$12", 12.0),
+        ("10kg", 10.0),
+        ("1e-3", 0.001),
+        ("is 5.", 5.0),
+        ("none here", None),
+    ],
+)
+def test_first_number_free_text(text: str, want: float | None) -> None:
+    assert first_number(text) == want
+
+
+def test_numeric_tolerance_free_text_review_cases() -> None:
+    assert not s("numeric-tolerance", -2026, "INV-2026").passed
+    assert s("numeric-tolerance", 150, "Invoice INV-2026: total 150").passed
+    assert s("numeric-tolerance", 42, "Paid on 2026-11-14: 42").passed
+    assert not s("numeric-tolerance", 2026, "Paid on 2026-11-14: 42").passed
+    assert s("numeric-tolerance", 0.5, ".5").passed
+    assert not s("numeric-tolerance", 5, ".5").passed
+    # The same parser reads a string under `field`.
+    assert s("numeric-tolerance", 0.5, '{"r": "ratio .5"}', {"field": "r"}).passed
 
 
 def test_contains_all_partial_score() -> None:
