@@ -1,0 +1,53 @@
+[project]
+name = "yardstick"
+version = "0.1.0"
+description = "Eval harness over other projects' AI evals: common run format, baselines, compare, CI regression gates, reports."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "MIT" }
+dependencies = [
+    "pydantic==2.14.3",
+    "typer==0.29.1",
+    "jinja2==3.1.6",
+    "jsonschema==4.26.0",
+    "pyyaml==6.0.3",
+]
+
+[project.scripts]
+yardstick = "yardstick.cli:app"
+
+[dependency-groups]
+dev = [
+    "pytest==9.2.0",
+    "hypothesis==6.170.15",
+    "ruff==0.17.5",
+    "mypy==2.4.1",
+    "types-jsonschema==4.26.0.20261006",
+    "types-PyYAML==6.0.12.20261113",
+]
+
+[build-system]
+requires = ["hatchling==1.33.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/yardstick"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+allowed-confusables = ["\u2019", "\u201c", "\u201d", "\u2212"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src", "tests", "fixtures/targets"]
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

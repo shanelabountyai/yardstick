@@ -1,0 +1,10 @@
+# Example gate for the extraction suite.
+min_items: 10
+rules:
+  - metric: pass_rate
+    floor: 0.9
+    max_drop: 0.0
+  - metric: mean_score
+    max_drop: 0.02
+  - metric: cost_per_item_usd
+    max: 0.01
