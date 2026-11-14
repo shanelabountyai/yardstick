@@ -14,3 +14,21 @@ uv run yardstick baseline pin "$work/healthy.json" --baselines-dir "$work/baseli
 # The gate is expected to fail here; the report is the artefact.
 uv run yardstick gate "$work/degraded.json" -c fixtures/gates/support-bot.yaml \
   --baselines-dir "$work/baselines" --report examples/report-example.md || test $? -eq 1
+
+# Phase 2: Footnote's committed result files through the results-file adapter (footnote mapping).
+fn=fixtures/footnote/results
+mkdir -p examples/footnote
+uv run yardstick footnote suite fixtures/footnote/golden.json -o "$work/footnote-suite.yaml"
+cmp "$work/footnote-suite.yaml" fixtures/footnote/suite.yaml
+uv run yardstick footnote reproduce --results-dir "$fn" --golden fixtures/footnote/golden.json \
+  --scorecard "$fn/scorecard-cd1252c6a407-2026-10-28.md" \
+  --source "shanelabountyai/footnote @ 3c9b0c7 (eval/results, eval/golden.json)" \
+  -o examples/footnote/reproduction.md
+fcommon=(--suite fixtures/footnote/suite.yaml --mapping footnote --no-git --fixed-clock 2026-11-14T00:00:00Z)
+uv run yardstick run "${fcommon[@]}" --target-name footnote-hybrid-sonnet-theta-on \
+  --results "$fn/answers-hybrid-claude-sonnet-5-5-theta-on-cd1252c6a407-2026-10-23T1646.json" --out "$work/fn-base.json"
+uv run yardstick run "${fcommon[@]}" --target-name footnote-dense-sonnet-theta-off \
+  --results "$fn/answers-dense-claude-sonnet-5-5-theta-off-cd1252c6a407-2026-10-28T0102.json" --out "$work/fn-cand.json"
+# Footnote's cells miss its own targets, so this gate fails too; the reports are the artefacts.
+uv run yardstick gate "$work/fn-cand.json" -c fixtures/gates/footnote.yaml --baseline "$work/fn-base.json" \
+  --report examples/footnote/report.md --html-report examples/footnote/report.html || test $? -eq 1

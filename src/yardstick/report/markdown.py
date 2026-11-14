@@ -106,7 +106,7 @@ def build(
 ) -> ReportData:
     """Compute and format the report's content. ``cell`` escapes free text for the output format."""
     m = metrics_mod.compute(run)
-    ro = report_only_keys(run)
+    ro = report_only_keys(run) | (report_only_keys(baseline) if baseline is not None else set())
     comparison: Comparison | None = None
     warnings: list[str] = list(gate.warnings) if gate else []
     if baseline is not None:
@@ -140,15 +140,18 @@ def build(
         )
 
     rate_rows = []
-    for key, rm in m.rates.items():
+    # Rate keys of either run, so a rate the baseline had and this run lacks shows as "not reported".
+    base_keys = {d.metric[5:] for d in deltas.values() if d.slice is None and d.metric.startswith("rate:")}
+    for key in sorted(set(m.rates) | base_keys):
+        rm = m.rates.get(key)
         d = deltas.get(("rate:" + key, None))
         rate_rows.append(
             _Row(
                 {
                     "label": cell(rate_label(key, ro)),
-                    "n": rm.n_items,
+                    "n": rm.n_items if rm else 0,
                     "value": fmt_rate(rm),
-                    "raw": rm.value,
+                    "raw": rm.value if rm else None,
                     "base": fmt_metric("rate:", d.a) if d else "",
                     "base_raw": d.a if d else None,
                     "delta": fmt_delta("rate:", d.delta) if d else "",
@@ -158,14 +161,18 @@ def build(
 
     slice_rate_rows = []
     for name, sm in m.slices.items():
-        for key, rm in sm.rates.items():
+        slice_keys = {
+            d.metric[5:] for d in deltas.values() if d.slice == name and d.metric.startswith("rate:")
+        }
+        for key in sorted(set(sm.rates) | slice_keys):
+            rm = sm.rates.get(key)
             d = deltas.get(("rate:" + key, name))
             slice_rate_rows.append(
                 _Row(
                     {
                         "slice": cell(name),
                         "label": cell(rate_label(key, ro)),
-                        "n": rm.n_items,
+                        "n": rm.n_items if rm else 0,
                         "value": fmt_rate(rm),
                         "delta": fmt_delta("rate:", d.delta) if d else "n/a",
                     }
