@@ -2,9 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+import re
+from typing import Any, ClassVar, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
 from yardstick.hashing import content_hash
 
@@ -20,29 +29,82 @@ MetricName = Literal[
 ]
 
 #: Metrics where a higher value is better. The others (latency, cost) are lower-is-better.
+#: Every ``rate:<scorer key>`` metric is higher-is-better too (see :func:`higher_is_better`).
 HIGHER_IS_BETTER: frozenset[str] = frozenset({"pass_rate", "mean_score"})
 
-#: Metrics that exist per slice. Latency and cost are run-level only in Phase 1.
+#: Metrics that exist per slice (``rate:<key>`` metrics do too). Latency and cost are run-level only.
 SLICE_METRICS: frozenset[str] = frozenset({"pass_rate", "mean_score"})
+
+#: Prefix of rate metrics: ``rate:<scorer key>`` = hits / total over the items where that scorer applied.
+RATE_PREFIX = "rate:"
+_RATE_METRIC = re.compile(r"^rate:[A-Za-z0-9_.+-]+$")
+_FIXED_METRICS: frozenset[str] = frozenset(
+    {"pass_rate", "mean_score", "latency_p50_ms", "latency_p95_ms", "cost_total_usd", "cost_per_item_usd"}
+)
+
+
+def is_rate_metric(metric: str) -> bool:
+    return bool(_RATE_METRIC.match(metric))
+
+
+def rate_key(metric: str) -> str:
+    return metric[len(RATE_PREFIX) :]
+
+
+def is_known_metric(metric: str) -> bool:
+    return metric in _FIXED_METRICS or is_rate_metric(metric)
+
+
+def higher_is_better(metric: str) -> bool:
+    return metric in HIGHER_IS_BETTER or is_rate_metric(metric)
+
+
+def has_slices(metric: str) -> bool:
+    return metric in SLICE_METRICS or is_rate_metric(metric)
 
 
 class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
+def _is_empty_default(value: Any) -> bool:
+    return value is None or value is False or (isinstance(value, dict) and not value)
+
+
+class _Additive(_Strict):
+    """Fields added after Phase 1 are left out of the serialised form while they hold their empty default
+    (``None``, ``False`` or ``{}``), so Phase 1 runs, suite hashes and run ids stay byte-identical (D-24)."""
+
+    _omit_if_empty: ClassVar[tuple[str, ...]] = ()
+
+    @model_serializer(mode="wrap")
+    def _omit_empty_additions(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data: dict[str, Any] = handler(self)
+        for name in self._omit_if_empty:
+            if name in data and _is_empty_default(data[name]):
+                del data[name]
+        return data
+
+
 # --------------------------------------------------------------------------- suites
 
 
-class ScorerSpec(_Strict):
+class ScorerSpec(_Additive):
     """A scorer used by a suite.
 
     ``key`` is the name under which items carry the expected value for this scorer (defaults to ``name``),
     so a suite can use the same scorer twice with different options.
+
+    ``report_only`` scores are recorded and feed ``rate:<key>`` metrics but never decide an item's pass or
+    mean score (D-25).
     """
+
+    _omit_if_empty: ClassVar[tuple[str, ...]] = ("report_only",)
 
     name: str
     key: str | None = None
     options: dict[str, Any] = Field(default_factory=dict)
+    report_only: bool = False
 
     @property
     def expected_key(self) -> str:
@@ -109,14 +171,21 @@ class Suite(_Strict):
 # --------------------------------------------------------------------------- runs
 
 
-class Output(_Strict):
-    """What a target produced for one item. ``None`` telemetry means the target did not report it."""
+class Output(_Additive):
+    """What a target produced for one item. ``None`` telemetry means the target did not report it.
+
+    ``fields`` holds structured values the target reported beside the text (e.g. a status or refusal code),
+    for scorers such as ``field-equals`` and ``label-rate``.
+    """
+
+    _omit_if_empty: ClassVar[tuple[str, ...]] = ("fields",)
 
     text: str = ""
     refused: bool | None = None
     latency_ms: int | None = None
     cost_usd: float | None = None
     error: str | None = None
+    fields: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("latency_ms")
     @classmethod
@@ -135,12 +204,23 @@ class Output(_Strict):
         return round(v, 6)
 
 
-class Score(_Strict):
+class Score(_Additive):
+    """One scorer's verdict on one item.
+
+    ``hits``/``total`` are set only by counting scorers (``label-rate`` counts sentence labels); otherwise
+    a score counts as 1/1 when passed and 0/1 when not (see :meth:`counts`).
+    """
+
+    _omit_if_empty: ClassVar[tuple[str, ...]] = ("hits", "total", "report_only")
+
     key: str
     scorer: str
     score: float
     passed: bool
     detail: str = ""
+    hits: int | None = None
+    total: int | None = None
+    report_only: bool = False
 
     @field_validator("score")
     @classmethod
@@ -148,6 +228,19 @@ class Score(_Strict):
         if not 0.0 <= v <= 1.0:
             raise ValueError("score must be in [0, 1]")
         return round(v, 6)
+
+    @model_validator(mode="after")
+    def _check_counts(self) -> Score:
+        if (self.hits is None) != (self.total is None):
+            raise ValueError("hits and total must be set together")
+        if self.hits is not None and self.total is not None and not 0 <= self.hits <= self.total:
+            raise ValueError("need 0 <= hits <= total")
+        return self
+
+    def counts(self) -> tuple[int, int]:
+        if self.hits is not None and self.total is not None:
+            return self.hits, self.total
+        return (1 if self.passed else 0), 1
 
 
 class ItemResult(_Strict):
@@ -166,7 +259,12 @@ class TargetInfo(_Strict):
     detail: str = ""
 
 
-class Run(_Strict):
+class Run(_Additive):
+    """One execution. ``reported_cost_usd`` is a run-level cost the target reported (e.g. Footnote's
+    ``spentUsd``); it is used only when items do not all report their own cost (D-27)."""
+
+    _omit_if_empty: ClassVar[tuple[str, ...]] = ("reported_cost_usd",)
+
     schema_version: int = RUN_SCHEMA_VERSION
     run_id: str
     suite_name: str
@@ -177,6 +275,16 @@ class Run(_Strict):
     git_sha: str | None = None
     started_at: str
     items: list[ItemResult]
+    reported_cost_usd: float | None = None
+
+    @field_validator("reported_cost_usd")
+    @classmethod
+    def _run_cost(cls, v: float | None) -> float | None:
+        if v is None:
+            return None
+        if v < 0:
+            raise ValueError("reported_cost_usd must be >= 0")
+        return round(v, 6)
 
     @staticmethod
     def compute_id(payload: dict[str, Any]) -> str:
@@ -188,10 +296,20 @@ class Run(_Strict):
 # --------------------------------------------------------------------------- metrics
 
 
+class RateMetric(_Strict):
+    """``hits / total`` pooled over the items where one scorer applied; ``value`` is None when total is 0."""
+
+    hits: int
+    total: int
+    n_items: int
+    value: float | None
+
+
 class SliceMetrics(_Strict):
     n_items: int
     pass_rate: float | None
     mean_score: float | None
+    rates: dict[str, RateMetric] = Field(default_factory=dict)
 
 
 class MetricSet(_Strict):
@@ -206,8 +324,20 @@ class MetricSet(_Strict):
     cost_per_item_usd: float | None
     cost_reported: int
     slices: dict[str, SliceMetrics]
+    rates: dict[str, RateMetric] = Field(default_factory=dict)
+    #: Where the cost metrics came from: every item ("items"), the run-level total ("run"), or nowhere (None).
+    cost_source: Literal["items", "run"] | None = None
+
+    def rate(self, key: str, slice_name: str | None = None) -> RateMetric | None:
+        if slice_name is None:
+            return self.rates.get(key)
+        sm = self.slices.get(slice_name)
+        return None if sm is None else sm.rates.get(key)
 
     def value(self, metric: str, slice_name: str | None = None) -> float | int | None:
+        if is_rate_metric(metric):
+            rm = self.rate(rate_key(metric), slice_name)
+            return None if rm is None else rm.value
         if slice_name is not None:
             if metric not in SLICE_METRICS:
                 raise KeyError(f"metric {metric!r} is not available per slice")
@@ -216,12 +346,16 @@ class MetricSet(_Strict):
                 return None
             v: float | int | None = getattr(sm, metric)
             return v
-        if metric not in MetricSet.model_fields or metric in {"slices", "n_errors"}:
+        if metric not in _FIXED_METRICS:
             raise KeyError(f"unknown metric {metric!r}")
         out: float | int | None = getattr(self, metric)
         return out
 
-    def count(self, slice_name: str | None = None) -> int:
+    def count(self, slice_name: str | None = None, metric: str | None = None) -> int:
+        """Items behind a metric: for ``rate:<key>``, only the items where that scorer applied."""
+        if metric is not None and is_rate_metric(metric):
+            rm = self.rate(rate_key(metric), slice_name)
+            return 0 if rm is None else rm.n_items
         if slice_name is None:
             return self.n_items
         sm = self.slices.get(slice_name)
@@ -232,7 +366,8 @@ class MetricSet(_Strict):
 
 
 class GateRule(_Strict):
-    metric: MetricName
+    #: A :data:`MetricName` or ``rate:<scorer key>``.
+    metric: str
     slice: str | None = None
     floor: float | None = None
     max: float | None = None
@@ -242,9 +377,13 @@ class GateRule(_Strict):
 
     @model_validator(mode="after")
     def _check(self) -> GateRule:
+        if not is_known_metric(self.metric):
+            raise ValueError(
+                f"unknown metric {self.metric!r}; use one of {sorted(_FIXED_METRICS)} or rate:<scorer key>"
+            )
         if all(x is None for x in (self.floor, self.max, self.max_drop, self.max_rise)):
             raise ValueError(f"rule for {self.metric!r} sets none of floor / max / max_drop / max_rise")
-        if self.slice is not None and self.metric not in SLICE_METRICS:
+        if self.slice is not None and not has_slices(self.metric):
             raise ValueError(f"metric {self.metric!r} is not available per slice")
         if self.min_items is not None and self.min_items < 1:
             raise ValueError("min_items must be >= 1")

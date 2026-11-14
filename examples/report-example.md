@@ -25,6 +25,16 @@
 | Cost total | $0.006239 | $0.006239 | ±$0.000000 |
 | Cost per item | $0.000520 | $0.000520 | ±$0.000000 |
 
+## Rates
+
+Per scorer: hits / total over the items it applied to. Report-only scorers never decide an item's pass.
+
+| Scorer | Items | Rate | Baseline | Change |
+|---|---|---|---|---|
+| `citation-grounded` | 3 | 66.7% (2/3) | 100.0% | −33.3 pt |
+| `contains-all` | 8 | 75.0% (6/8) | 100.0% | −25.0 pt |
+| `refusal-expected` | 12 | 83.3% (10/12) | 100.0% | −16.7 pt |
+
 ## Slices
 
 | Slice | Items | Pass rate | Mean score | Pass rate change |
@@ -32,6 +42,18 @@
 | account | 4 | 75.0% | 95.8% | −25.0 pt |
 | faq | 4 | 50.0% | 79.2% | −50.0 pt |
 | refusal | 4 | 50.0% | 50.0% | −50.0 pt |
+
+### Rates by slice
+
+| Slice | Scorer | Items | Rate | Change |
+|---|---|---|---|---|
+| account | `citation-grounded` | 1 | 100.0% (1/1) | ±0.0 pt |
+| account | `contains-all` | 4 | 75.0% (3/4) | −25.0 pt |
+| account | `refusal-expected` | 4 | 100.0% (4/4) | ±0.0 pt |
+| faq | `citation-grounded` | 2 | 50.0% (1/2) | −50.0 pt |
+| faq | `contains-all` | 4 | 75.0% (3/4) | −25.0 pt |
+| faq | `refusal-expected` | 4 | 100.0% (4/4) | ±0.0 pt |
+| refusal | `refusal-expected` | 4 | 50.0% (2/4) | −50.0 pt |
 
 ## Gate
 

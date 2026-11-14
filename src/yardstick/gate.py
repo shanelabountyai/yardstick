@@ -30,7 +30,7 @@ def evaluate_rule(
     rule: GateRule, current: MetricSet, baseline: MetricSet | None, default_min_items: int
 ) -> RuleResult:
     min_items = rule.min_items if rule.min_items is not None else default_min_items
-    n = current.count(rule.slice)
+    n = current.count(rule.slice, rule.metric)
     cur = current.value(rule.metric, rule.slice)
     base = baseline.value(rule.metric, rule.slice) if baseline is not None else None
     checks: list[CheckResult] = []

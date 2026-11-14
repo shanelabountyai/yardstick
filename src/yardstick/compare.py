@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from yardstick import metrics as metrics_mod
-from yardstick.models import HIGHER_IS_BETTER, Comparison, MetricDelta, Run
+from yardstick.models import RATE_PREFIX, Comparison, MetricDelta, Run, higher_is_better
 from yardstick.suite_check import check_same_suite
 
 RUN_METRICS = (
@@ -22,7 +22,7 @@ def _delta(metric: str, slice_name: str | None, a: float | int | None, b: float 
     d = round(b - a, 6)
     if d == 0:
         direction = "same"
-    elif (d > 0) == (metric in HIGHER_IS_BETTER):
+    elif (d > 0) == higher_is_better(metric):
         direction = "better"
     else:
         direction = "worse"
@@ -33,8 +33,17 @@ def compare(a: Run, b: Run, *, allow_suite_change: bool = False) -> Comparison:
     warnings = check_same_suite(a, b, allow_suite_change)
     ma, mb = metrics_mod.compute(a), metrics_mod.compute(b)
     deltas = [_delta(m, None, ma.value(m), mb.value(m)) for m in RUN_METRICS]
+    rate_metrics = [RATE_PREFIX + k for k in sorted(set(ma.rates) | set(mb.rates))]
+    deltas += [_delta(m, None, ma.value(m), mb.value(m)) for m in rate_metrics]
     for s in sorted(set(ma.slices) | set(mb.slices)):
         for m in ("pass_rate", "mean_score"):
+            deltas.append(_delta(m, s, ma.value(m, s), mb.value(m, s)))
+        slice_rates = sorted(
+            set(ma.slices[s].rates if s in ma.slices else {})
+            | set(mb.slices[s].rates if s in mb.slices else {})
+        )
+        for k in slice_rates:
+            m = RATE_PREFIX + k
             deltas.append(_delta(m, s, ma.value(m, s), mb.value(m, s)))
 
     ra = {r.item_id: r for r in a.items}

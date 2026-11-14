@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Protocol
+from dataclasses import dataclass
+from typing import Protocol, runtime_checkable
 
 from yardstick.models import Item, Output, TargetInfo
 
@@ -14,3 +15,16 @@ class Adapter(Protocol):
     info: TargetInfo
 
     def produce(self, items: Sequence[Item]) -> dict[str, Output]: ...
+
+
+@dataclass(frozen=True)
+class RunMeta:
+    """Run-level facts a target reported (e.g. a results file's model and total spend)."""
+
+    model: str | None = None
+    cost_usd: float | None = None
+
+
+@runtime_checkable
+class ReportsRunMeta(Protocol):
+    def run_meta(self) -> RunMeta: ...
