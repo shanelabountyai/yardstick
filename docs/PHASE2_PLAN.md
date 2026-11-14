@@ -28,7 +28,7 @@ invariants), examples regenerate byte-identically, GitHub CI green.
 
 1. **Fixtures** `fixtures/footnote/`: the 6 answers files, `golden.json`, the scorecard, `ATTRIBUTION.md` (source repo,
    commit, paths, what was changed: nothing).
-2. **Core additions** (all additive; Phase 1 runs, suites and the example report stay byte-identical):
+2. **Core additions** (all additive; Phase 1 runs, run ids and suite hashes stay byte-identical; the example report gains Rates sections, D-26):
    - `Output.fields`: structured values a target reports (status, refusal code, verdicts, gate score).
    - `ScorerSpec.report_only` / `Score.report_only`: the score is recorded and feeds rate metrics, but never decides
      item pass or mean score.
@@ -95,7 +95,7 @@ model call (`noRelevantPassage()` in `src/lib/answer/gate.ts`).
 | Suite file is the golden set | test: regenerating `suite.yaml` from `golden.json` is byte-identical |
 | Rates | hypothesis: rate = Σhits/Σtotal, in [0, 1], `None` iff Σtotal = 0; report-only scores never change item pass or mean |
 | YS-01..YS-04 still hold | existing invariant tests, plus YS-01 for results-file runs and YS-04 for run-level cost (none → "not reported") |
-| Backward compatibility | Phase 1 example report regenerates byte-identically; a Phase 1 run JSON still loads |
+| Backward compatibility | Phase 1 run JSON carries none of the new keys and suite hashes are unchanged; a Phase 1 run JSON still loads; the example's run ids are unchanged |
 | HTML report | test: one file, no `<script>`, no `http(s)://` references, values escaped, byte-identical on rerun, contains the SVG chart and "not reported" where telemetry is missing |
 
 ## Risks
