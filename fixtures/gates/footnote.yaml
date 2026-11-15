@@ -1,0 +1,17 @@
+# Gate over the footnote-golden suite, using Footnote's own scorecard targets (eval:scorecard "Target" column).
+min_items: 8
+rules:
+  # Answered or partial on answerable questions (A, M) >= 90%, and no more than 2 points below the baseline.
+  - metric: rate:refusal
+    slice: A+M
+    floor: 0.90
+    max_drop: 0.02
+  # Refusal on unanswerable questions (U) >= 90%.
+  - metric: pass_rate
+    slice: U
+    floor: 0.90
+  # Sentence support (judge) on A, M, V >= 90%. A cell run without the judge has no verdicts, so this is
+  # "not reported" and the rule fails closed (D-11).
+  - metric: rate:support
+    slice: A+M+V
+    floor: 0.90

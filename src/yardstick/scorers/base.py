@@ -15,16 +15,29 @@ class ScorerConfigError(ValueError):
 
 @dataclass(frozen=True)
 class Outcome:
+    """A scorer's verdict. Counting scorers set ``hits``/``total``; ``applicable=False`` means there was
+    nothing to score (e.g. no labels to count), so the runner records no score for that item."""
+
     score: float
     passed: bool
     detail: str = ""
+    hits: int | None = None
+    total: int | None = None
+    applicable: bool = True
 
     @staticmethod
     def binary(passed: bool, detail: str = "") -> Outcome:
         return Outcome(1.0 if passed else 0.0, passed, detail)
 
+    @staticmethod
+    def not_applicable(detail: str = "") -> Outcome:
+        return Outcome(0.0, False, detail, applicable=False)
+
 
 class Scorer(Protocol):
+    """``name`` is the registry name. A scorer whose counts are not items (e.g. sentence labels) also sets a
+    class attribute ``counting = True``, so a target error counts as 0/0 rather than a phantom 0/1."""
+
     name: str
 
     def __call__(self, expected: Any, output: Output, options: dict[str, Any]) -> Outcome: ...

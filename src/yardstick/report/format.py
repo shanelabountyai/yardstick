@@ -7,10 +7,14 @@ NOT_REPORTED = "not reported"
 PERCENT_METRICS = {"pass_rate", "mean_score"}
 
 
+def is_percent(metric: str) -> bool:
+    return metric in PERCENT_METRICS or metric.startswith("rate:")
+
+
 def fmt_metric(metric: str, value: float | int | None) -> str:
     if value is None:
         return NOT_REPORTED
-    if metric in PERCENT_METRICS:
+    if is_percent(metric):
         return f"{value * 100:.1f}%"
     if metric.endswith("_ms"):
         return f"{int(value)} ms"
@@ -24,7 +28,7 @@ def fmt_delta(metric: str, delta: float | None) -> str:
         return "n/a"
     sign = "+" if delta > 0 else ("\u2212" if delta < 0 else "\u00b1")
     mag = abs(delta)
-    if metric in PERCENT_METRICS:
+    if is_percent(metric):
         return f"{sign}{mag * 100:.1f} pt"
     if metric.endswith("_ms"):
         return f"{sign}{round(mag)} ms"

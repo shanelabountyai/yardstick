@@ -27,6 +27,19 @@
 | {{ row.label }} | {{ row.value }}{% if comparison %} | {{ row.base }} | {{ row.delta }}{% endif %} |
 {% endfor %}
 
+{% if rate_rows %}
+## Rates
+
+Per scorer: hits / total over the items it applied to. Report-only scorers never decide an item's pass.
+
+| Scorer | Items | Rate{% if comparison %} | Baseline | Change{% endif %} |
+|---|---|---|{% if comparison %}---|---|{% endif %}
+
+{% for row in rate_rows -%}
+| `{{ row.label }}` | {{ row.n }} | {{ row.value }}{% if comparison %} | {{ row.base }} | {{ row.delta }}{% endif %} |
+{% endfor %}
+{% endif %}
+
 {% if slice_rows %}
 ## Slices
 
@@ -35,6 +48,17 @@
 
 {% for row in slice_rows -%}
 | {{ row.name }} | {{ row.n }} | {{ row.pass_rate }} | {{ row.mean }}{% if comparison %} | {{ row.delta }}{% endif %} |
+{% endfor %}
+{% endif %}
+
+{% if slice_rate_rows %}
+### Rates by slice
+
+| Slice | Scorer | Items | Rate{% if comparison %} | Change{% endif %} |
+|---|---|---|---|{% if comparison %}---|{% endif %}
+
+{% for row in slice_rate_rows -%}
+| {{ row.slice }} | `{{ row.label }}` | {{ row.n }} | {{ row.value }}{% if comparison %} | {{ row.delta }}{% endif %} |
 {% endfor %}
 {% endif %}
 

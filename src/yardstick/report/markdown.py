@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from importlib import resources
 from typing import Any
@@ -13,8 +14,8 @@ from yardstick import __version__
 from yardstick import metrics as metrics_mod
 from yardstick.compare import RUN_METRICS
 from yardstick.compare import compare as compare_runs
-from yardstick.models import Comparison, GateResult, MetricDelta, Run
-from yardstick.report.format import fmt_delta, fmt_limit, fmt_metric, md_cell
+from yardstick.models import Comparison, GateResult, MetricDelta, MetricSet, RateMetric, Run
+from yardstick.report.format import NOT_REPORTED, fmt_delta, fmt_limit, fmt_metric, md_cell
 
 LABELS = {
     "pass_rate": "Pass rate",
@@ -59,14 +60,53 @@ def _coverage(metric: str, value: str, reported: int, n: int) -> str:
     return value
 
 
-def render(
+def fmt_rate(rm: RateMetric | None) -> str:
+    """``96.1% (49/51)``; "not reported" when nothing was counted."""
+    if rm is None or rm.value is None:
+        return NOT_REPORTED
+    return f"{fmt_metric('rate:', rm.value)} ({rm.hits}/{rm.total})"
+
+
+def rate_label(key: str, report_only: set[str]) -> str:
+    return f"{key} (report-only)" if key in report_only else key
+
+
+def report_only_keys(run: Run) -> set[str]:
+    return {s.key for r in run.items for s in r.scores if s.report_only}
+
+
+@dataclass(frozen=True)
+class ReportData:
+    """Everything a report shows, already formatted. Shared by the markdown and HTML renderers."""
+
+    run: Run
+    baseline: Run | None
+    m: MetricSet
+    gate: GateResult | None
+    comparison: Comparison | None
+    warnings: list[str]
+    summary_rows: list[_Row]
+    rate_rows: list[_Row]
+    slice_rows: list[_Row]
+    slice_rate_rows: list[_Row]
+    gate_rows: list[_Row]
+    failing_rows: list[_Row]
+    failing_total: int
+    failing_more: bool
+    version: str
+
+
+def build(
     run: Run,
     *,
     baseline: Run | None = None,
     gate: GateResult | None = None,
     allow_suite_change: bool = False,
-) -> str:
+    cell: Callable[[str], str] = md_cell,
+) -> ReportData:
+    """Compute and format the report's content. ``cell`` escapes free text for the output format."""
     m = metrics_mod.compute(run)
+    ro = report_only_keys(run) | (report_only_keys(baseline) if baseline is not None else set())
     comparison: Comparison | None = None
     warnings: list[str] = list(gate.warnings) if gate else []
     if baseline is not None:
@@ -85,6 +125,8 @@ def render(
             value = _coverage(metric, value, m.latency_reported, m.n_items)
         elif metric.startswith("cost"):
             value = _coverage(metric, value, m.cost_reported, m.n_items)
+            if m.cost_source == "run":
+                value += " (run total reported by target)"
         d = deltas.get((metric, None))
         summary_rows.append(
             _Row(
@@ -97,13 +139,55 @@ def render(
             )
         )
 
+    rate_rows = []
+    # Rate keys of either run, so a rate the baseline had and this run lacks shows as "not reported".
+    base_keys = {d.metric[5:] for d in deltas.values() if d.slice is None and d.metric.startswith("rate:")}
+    for key in sorted(set(m.rates) | base_keys):
+        rm = m.rates.get(key)
+        d = deltas.get(("rate:" + key, None))
+        rate_rows.append(
+            _Row(
+                {
+                    "label": cell(rate_label(key, ro)),
+                    "n": rm.n_items if rm else 0,
+                    "value": fmt_rate(rm),
+                    "raw": rm.value if rm else None,
+                    "base": fmt_metric("rate:", d.a) if d else "",
+                    "base_raw": d.a if d else None,
+                    "delta": fmt_delta("rate:", d.delta) if d else "",
+                }
+            )
+        )
+
+    slice_rate_rows = []
+    for name, sm in m.slices.items():
+        slice_keys = {
+            d.metric[5:] for d in deltas.values() if d.slice == name and d.metric.startswith("rate:")
+        }
+        for key in sorted(set(sm.rates) | slice_keys):
+            rm = sm.rates.get(key)
+            d = deltas.get(("rate:" + key, name))
+            slice_rate_rows.append(
+                _Row(
+                    {
+                        "slice": cell(name),
+                        "label": cell(rate_label(key, ro)),
+                        "n": rm.n_items if rm else 0,
+                        "value": fmt_rate(rm),
+                        "delta": fmt_delta("rate:", d.delta) if d else "n/a",
+                    }
+                )
+            )
+
     slice_rows = []
     for name, sm in m.slices.items():
         d = deltas.get(("pass_rate", name))
         slice_rows.append(
             _Row(
                 {
-                    "name": md_cell(name),
+                    "name": cell(name),
+                    "raw": sm.pass_rate,
+                    "base_raw": d.a if d else None,
                     "n": sm.n_items,
                     "pass_rate": fmt_metric("pass_rate", sm.pass_rate),
                     "mean": fmt_metric("mean_score", sm.mean_score),
@@ -122,14 +206,14 @@ def render(
             gate_rows.append(
                 _Row(
                     {
-                        "label": md_cell(rr.rule.label),
+                        "label": cell(rr.rule.label),
                         "current": fmt_metric(rr.rule.metric, rr.current),
                         "base": fmt_metric(rr.rule.metric, rr.baseline)
                         if gate.baseline_run_id
                         else "no baseline",
                         "n": rr.n_items,
                         "min": rr.min_items,
-                        "checks": md_cell("; ".join(parts)),
+                        "checks": cell("; ".join(parts)),
                         "passed": rr.passed,
                     }
                 )
@@ -138,38 +222,48 @@ def render(
     failing = [r for r in run.items if not r.passed]
     failing_rows = []
     for r in failing[:MAX_FAILING_ROWS]:
-        bad = [f"{s.key}: {s.detail}" if s.detail else s.key for s in r.scores if not s.passed]
-        if not r.scores:
+        gating = [s for s in r.scores if not s.report_only]
+        bad = [f"{s.key}: {s.detail}" if s.detail else s.key for s in gating if not s.passed]
+        if not gating:
             bad = ["no scorer applied"]
         failing_rows.append(
             _Row(
                 {
-                    "id": md_cell(r.item_id),
-                    "slices": md_cell(", ".join(r.slices) or "-"),
-                    "detail": md_cell("; ".join(bad))[:300],
+                    "id": cell(r.item_id),
+                    "slices": cell(", ".join(r.slices) or "-"),
+                    "detail": cell("; ".join(bad))[:300],
                 }
             )
         )
 
-    text = (
-        _env()
-        .from_string(_template_source())
-        .render(
-            run=run,
-            baseline=baseline,
-            m=m,
-            gate=gate,
-            comparison=comparison,
-            warnings=warnings,
-            summary_rows=summary_rows,
-            slice_rows=slice_rows,
-            gate_rows=gate_rows,
-            failing_rows=failing_rows,
-            failing_total=len(failing),
-            failing_more=len(failing) > MAX_FAILING_ROWS,
-            version=__version__,
-        )
+    return ReportData(
+        run=run,
+        baseline=baseline,
+        m=m,
+        gate=gate,
+        comparison=comparison,
+        warnings=warnings,
+        summary_rows=summary_rows,
+        rate_rows=rate_rows,
+        slice_rows=slice_rows,
+        slice_rate_rows=slice_rate_rows,
+        gate_rows=gate_rows,
+        failing_rows=failing_rows,
+        failing_total=len(failing),
+        failing_more=len(failing) > MAX_FAILING_ROWS,
+        version=__version__,
     )
+
+
+def render(
+    run: Run,
+    *,
+    baseline: Run | None = None,
+    gate: GateResult | None = None,
+    allow_suite_change: bool = False,
+) -> str:
+    data = build(run, baseline=baseline, gate=gate, allow_suite_change=allow_suite_change)
+    text = _env().from_string(_template_source()).render(**vars(data))
     # Headings always get a blank line around them; collapse runs of blank lines left by conditional blocks.
     text = re.sub(r"\n(#{1,6} [^\n]*)\n", r"\n\n\1\n\n", text)
     return re.sub(r"\n{3,}", "\n\n", text).strip() + "\n"

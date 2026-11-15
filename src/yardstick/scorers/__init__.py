@@ -1,4 +1,4 @@
-"""Deterministic scorers (Phase 1). ``llm-judge`` arrives in Phase 3."""
+"""Deterministic scorers (Phase 1; ``field-equals`` and ``label-rate`` in Phase 2). ``llm-judge``: Phase 3."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ from yardstick.scorers.base import Outcome, Scorer, ScorerConfigError
 from yardstick.scorers.citation import CitationGrounded
 from yardstick.scorers.contains_all import ContainsAll
 from yardstick.scorers.exact import Exact
+from yardstick.scorers.fields import FieldEquals, LabelRate
 from yardstick.scorers.json_schema import JsonSchema
 from yardstick.scorers.numeric import NumericTolerance
 from yardstick.scorers.refusal import RefusalExpected
@@ -21,6 +22,8 @@ _REGISTRY: dict[str, Scorer] = {
         ContainsAll(),
         RefusalExpected(),
         CitationGrounded(),
+        FieldEquals(),
+        LabelRate(),
     )
 }
 

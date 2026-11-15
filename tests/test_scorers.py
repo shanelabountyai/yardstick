@@ -15,6 +15,7 @@ def s(name: str, expected: Any, text: str = "", options: dict[str, Any] | None =
 
 
 def test_registry_has_all_phase1_scorers() -> None:
+    # Phase 1 scorers, plus the two Phase 2 field scorers (field-equals, label-rate). Still an exact list.
     assert scorer_names() == sorted(
         [
             "exact",
@@ -24,6 +25,8 @@ def test_registry_has_all_phase1_scorers() -> None:
             "contains-all",
             "refusal-expected",
             "citation-grounded",
+            "field-equals",
+            "label-rate",
         ]
     )
     with pytest.raises(ScorerConfigError):
