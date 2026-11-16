@@ -2,12 +2,32 @@
 
 A rule fails closed: missing baseline for a ``max_drop``/``max_rise`` check, a metric that is not reported,
 or fewer items than ``min_items`` all fail the rule (YS-02).
+
+YS-05 (Phase 3, D-40): a rule on ``rate:<key>`` where ``<key>`` is an ``llm-judge`` score gates only when
+a calibration for that judge (same model and prompt hash) has a pooled kappa at or above the gate's
+``judge.kappa_floor``. Otherwise it is still evaluated and shown, marked report-only with the reason, and
+never changes the verdict. A gate with no gating rule left fails closed (D-11).
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from yardstick import metrics as metrics_mod
-from yardstick.models import CheckResult, GateConfig, GateResult, GateRule, MetricSet, RuleResult, Run
+from yardstick.kappa import Calibration
+from yardstick.models import (
+    LLM_JUDGE,
+    CheckResult,
+    GateConfig,
+    GateResult,
+    GateRule,
+    JudgePolicy,
+    MetricSet,
+    RuleResult,
+    Run,
+    is_rate_metric,
+    rate_key,
+)
 from yardstick.suite_check import check_same_suite
 
 #: Values are compared after rounding to this many decimals, so 0.92 - 0.90 counts as exactly 0.02.
@@ -72,12 +92,43 @@ def evaluate_rule(
     )
 
 
+def judge_keys(run: Run) -> set[str]:
+    """Scorer keys in a run that come from an ``llm-judge`` scorer."""
+    keys = set(run.judges)
+    for item in run.items:
+        keys.update(s.key for s in item.scores if s.scorer == LLM_JUDGE)
+    return keys
+
+
+def judge_status(
+    run: Run, key: str, policy: JudgePolicy, calibrations: Sequence[Calibration]
+) -> tuple[bool, str]:
+    """``(gating, note)`` for a judge metric under YS-05."""
+    floor = policy.kappa_floor
+    rec = run.judges.get(key)
+    if rec is None:
+        return False, f"report-only (YS-05): judge for {key!r} not recorded in the run, kappa unknown"
+    who = f"{rec.model} prompt {rec.prompt_hash}"
+    found = [c for c in calibrations if c.matches(rec.model, rec.prompt_hash)]
+    if not found:
+        return False, f"report-only (YS-05): no calibration for {who}, kappa unknown"
+    if len(found) > 1:
+        return False, f"report-only (YS-05): {len(found)} calibrations for {who}; give exactly one"
+    pooled = found[0].pooled
+    if pooled.kappa is None:
+        return False, f"report-only (YS-05): kappa undefined for {who} (n {pooled.n})"
+    if round(pooled.kappa, 6) < round(floor, 6):
+        return False, f"report-only (YS-05): judge kappa {pooled.kappa:.2f} (n {pooled.n}) < floor {floor:g}"
+    return True, f"judge kappa {pooled.kappa:.2f} (n {pooled.n}) >= floor {floor:g}"
+
+
 def evaluate(
     config: GateConfig,
     run: Run,
     baseline: Run | None = None,
     *,
     allow_suite_change: bool = False,
+    calibrations: Sequence[Calibration] = (),
 ) -> GateResult:
     warnings: list[str] = []
     suite_changed = False
@@ -86,9 +137,20 @@ def evaluate(
         suite_changed = bool(warnings)
     current_m = metrics_mod.compute(run)
     base_m = metrics_mod.compute(baseline) if baseline is not None else None
-    results = [evaluate_rule(r, current_m, base_m, config.min_items) for r in config.rules]
+    policy = config.judge or JudgePolicy()
+    keys = judge_keys(run)
+    results = []
+    for rule in config.rules:
+        rr = evaluate_rule(rule, current_m, base_m, config.min_items)
+        if is_rate_metric(rule.metric) and rate_key(rule.metric) in keys:
+            gating, note = judge_status(run, rate_key(rule.metric), policy, calibrations)
+            rr = rr.model_copy(update={"report_only": not gating, "note": note})
+        results.append(rr)
+    gating_results = [r for r in results if not r.report_only]
+    if results and not gating_results:
+        warnings.append("every rule is report-only (YS-05), so nothing gates: the gate fails closed")
     return GateResult(
-        passed=bool(results) and all(r.passed for r in results),
+        passed=bool(gating_results) and all(r.passed for r in gating_results),
         rules=results,
         baseline_run_id=baseline.run_id if baseline is not None else None,
         suite_changed=suite_changed,
