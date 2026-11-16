@@ -1,8 +1,9 @@
 """Live judge over the Anthropic Messages API (D-34).
 
-Built and tested only against a fake transport: no live call and no API key in this repository's tests or CI.
-Running it live is an owner step (README). Cost is computed from the reply's token usage and the per-million-token
-prices the caller passes, never from a built-in price list, so a stale price cannot be invented (YS-04).
+Built and tested only against a fake transport: no live call and no API key in this repository's tests or
+CI. Running it live is an owner step (README). Cost is computed from the reply's token usage and the
+per-million-token prices the caller passes, never from a built-in price list, so a stale price cannot be
+invented (YS-04).
 """
 
 from __future__ import annotations
@@ -34,9 +35,9 @@ Transport = Callable[[str, dict[str, str], bytes, float], tuple[int, bytes]]
 
 
 def urllib_transport(url: str, headers: dict[str, str], body: bytes, timeout: float) -> tuple[int, bytes]:
-    req = urllib.request.Request(url, data=body, headers=headers, method="POST")  # noqa: S310 - fixed https URL
+    req = urllib.request.Request(url, data=body, headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             return int(resp.status), resp.read()
     except urllib.error.HTTPError as exc:
         return int(exc.code), exc.read()

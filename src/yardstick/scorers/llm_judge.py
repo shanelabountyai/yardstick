@@ -8,10 +8,10 @@ Options:
 - ``units_field`` (optional): a list field in ``Output.fields``; each element is one unit (key
   ``<item id>:<index>``). Without it the whole output text is one unit (index 0).
 
-``expected`` is the minimum share of positive units for the item (like ``label-rate``). Counts are units, so
-``rate:<key>`` pools them across items. A unit with no valid label, or one the budget cap stopped, is left out of
-the count and named in the detail. The scorer needs a :class:`JudgeSession` (the runner passes one); it is always
-report-only at item level (D-36), and a gate rule on its rate is governed by YS-05.
+``expected`` is the minimum share of positive units for the item (like ``label-rate``). Counts are units,
+so ``rate:<key>`` pools them across items. A unit with no valid label, or one the budget cap stopped, is left
+out of the count and named in the detail. The scorer needs a :class:`JudgeSession` (the runner passes one);
+it is always report-only at item level (D-36), and a gate rule on its rate is governed by YS-05.
 """
 
 from __future__ import annotations
@@ -67,7 +67,7 @@ class LlmJudge:
     counting = True
 
     def __call__(self, expected: Any, output: Output, options: dict[str, Any]) -> Outcome:
-        raise ScorerConfigError("llm-judge needs a judge: pass --judge and --judge-budget-usd to `run` (D-34)")
+        raise ScorerConfigError("llm-judge needs a judge: pass --judge and --judge-budget-usd to run (D-34)")
 
 
 @dataclass

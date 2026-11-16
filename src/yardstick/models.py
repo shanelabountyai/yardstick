@@ -151,8 +151,8 @@ class Suite(_Strict):
         for spec in self.scorers:
             if spec.name == LLM_JUDGE and not spec.report_only:
                 raise ValueError(
-                    f"scorer {spec.expected_key!r}: llm-judge scores must be report_only: true; a judge reaches a "
-                    "gate only through a rate:<key> rule, which YS-05 governs (D-36)"
+                    f"scorer {spec.expected_key!r}: llm-judge scores must be report_only: true; a judge "
+                    "reaches a gate only through a rate:<key> rule, which YS-05 governs (D-36)"
                 )
         known = set(keys)
         for item in self.items:

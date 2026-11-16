@@ -2,8 +2,8 @@
 
 - A call is made only if ``spent + estimate <= cap``; the estimate is the judge's upper bound for that call.
 - After the call, the actual cost is charged, or the estimate when the judge reports none.
-- The first refused call stops judging for the rest of the run, so the judged units are a prefix in suite order
-  and the run says how many were skipped.
+- The first refused call stops judging for the rest of the run, so the judged units are a prefix in suite
+  order and the run says how many were skipped.
 - A call that costs more than its estimate breaks the bound the cap relies on: it is charged, flagged as an
   overrun, and no further call is made.
 """

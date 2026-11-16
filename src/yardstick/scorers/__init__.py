@@ -1,4 +1,4 @@
-"""Scorers: deterministic (Phase 1; ``field-equals`` and ``label-rate`` in Phase 2) and ``llm-judge`` (Phase 3)."""
+"""Scorers: deterministic (Phase 1; ``field-equals``, ``label-rate`` in Phase 2), ``llm-judge`` (Phase 3)."""
 
 from __future__ import annotations
 

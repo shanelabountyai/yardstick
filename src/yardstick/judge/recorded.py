@@ -81,7 +81,7 @@ class RecordedJudge:
 
 
 class ScriptedJudge:
-    """Test judge: labels from a mapping or function, fixed estimate and actual cost per call, counts calls."""
+    """Test judge: labels from a mapping or function, a fixed estimate and cost per call; counts calls."""
 
     def __init__(
         self,
@@ -107,8 +107,5 @@ class ScriptedJudge:
 
     def judge(self, request: JudgeRequest) -> JudgeReply:
         self.calls.append(request.key)
-        if callable(self._labels):
-            label = self._labels(request)
-        else:
-            label = self._labels.get(request.key)
+        label = self._labels(request) if callable(self._labels) else self._labels.get(request.key)
         return JudgeReply(label, self._cost)

@@ -1,4 +1,5 @@
-"""Judge interface (Phase 3, D-34). A judge labels one *unit* (a sentence, or a whole output) against a rubric.
+"""Judge interface (Phase 3, D-34). A judge labels one *unit* (a sentence, or a whole output) against a
+rubric.
 
 Implementations: :class:`~yardstick.judge.recorded.RecordedJudge` (replays committed verdicts, no call made),
 :class:`~yardstick.judge.recorded.ScriptedJudge` (tests), :class:`~yardstick.judge.anthropic.AnthropicJudge`
@@ -34,7 +35,8 @@ class JudgeRequest:
 
 @dataclass(frozen=True)
 class JudgeReply:
-    #: One of the request's labels, or ``None`` when the judge gave no valid label (excluded from rates and kappa).
+    #: One of the request's labels, or ``None`` when the judge gave no valid label (excluded from rates and
+    #: from kappa).
     label: str | None
     #: What the call cost, if the judge knows; ``None`` makes the budget charge the estimate (D-37).
     cost_usd: float | None
