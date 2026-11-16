@@ -15,7 +15,8 @@ def s(name: str, expected: Any, text: str = "", options: dict[str, Any] | None =
 
 
 def test_registry_has_all_phase1_scorers() -> None:
-    # Phase 1 scorers, plus the two Phase 2 field scorers (field-equals, label-rate). Still an exact list.
+    # Phase 1 scorers, the two Phase 2 field scorers (field-equals, label-rate) and Phase 3's llm-judge.
+    # Still an exact list (D-33).
     assert scorer_names() == sorted(
         [
             "exact",
