@@ -28,10 +28,14 @@ def test_registry_has_all_phase1_scorers() -> None:
             "citation-grounded",
             "field-equals",
             "label-rate",
+            "llm-judge",
         ]
     )
     with pytest.raises(ScorerConfigError):
-        get_scorer("llm-judge")
+        get_scorer("no-such-scorer")
+    # llm-judge is registered, but scoring needs a judge session; called directly it refuses (D-34).
+    with pytest.raises(ScorerConfigError, match="needs a judge"):
+        get_scorer("llm-judge")(1.0, Output(text="x"), {})
 
 
 def test_exact() -> None:
