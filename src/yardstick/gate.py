@@ -14,7 +14,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from yardstick import metrics as metrics_mod
-from yardstick.kappa import Calibration
+from yardstick.kappa import Calibration, js_fixed
 from yardstick.models import (
     LLM_JUDGE,
     CheckResult,
@@ -118,8 +118,11 @@ def judge_status(
     if pooled.kappa is None:
         return False, f"report-only (YS-05): kappa undefined for {who} (n {pooled.n})"
     if round(pooled.kappa, 6) < round(floor, 6):
-        return False, f"report-only (YS-05): judge kappa {pooled.kappa:.2f} (n {pooled.n}) < floor {floor:g}"
-    return True, f"judge kappa {pooled.kappa:.2f} (n {pooled.n}) >= floor {floor:g}"
+        return (
+            False,
+            f"report-only (YS-05): judge kappa {js_fixed(pooled.kappa, 2)} (n {pooled.n}) < floor {floor:g}",
+        )
+    return True, f"judge kappa {js_fixed(pooled.kappa, 2)} (n {pooled.n}) >= floor {floor:g}"
 
 
 def evaluate(

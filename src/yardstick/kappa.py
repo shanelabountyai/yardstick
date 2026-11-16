@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
@@ -166,13 +167,20 @@ def load_calibration(path: Path) -> Calibration:
     return Calibration.model_validate(json.loads(path.read_text(encoding="utf-8")))
 
 
+def js_fixed(x: float, digits: int) -> str:
+    """JavaScript ``Number.prototype.toFixed``: the exact binary value, ties away from zero. Used for every
+    printed kappa figure so Yardstick prints what Footnote's ``eval:kappa`` prints (0.825 -> "83%")."""
+    q = Decimal(x).quantize(Decimal(1).scaleb(-digits), rounding=ROUND_HALF_UP)
+    return f"{q:.{digits}f}"
+
+
 def fmt_stat(s: KappaStat) -> str:
     """One line for terminals and reports."""
     if s.n == 0:
         return f"{s.name}: n 0 ({s.missing} without a usable verdict), kappa not computed"
-    kappa = "undefined (p_e = 1)" if s.kappa is None else f"{s.kappa:.2f}"
+    kappa = "undefined (p_e = 1)" if s.kappa is None else js_fixed(s.kappa, 2)
     assert s.observed is not None and s.expected is not None
     return (
-        f"{s.name}: n {s.n} ({s.missing} without a usable verdict), raw agreement {s.observed:.0%}, "
-        f"p_e {s.expected:.3f}, kappa {kappa}"
+        f"{s.name}: n {s.n} ({s.missing} without a usable verdict), raw agreement "
+        f"{js_fixed(s.observed * 100, 0)}%, p_e {js_fixed(s.expected, 3)}, kappa {kappa}"
     )

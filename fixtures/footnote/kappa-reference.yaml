@@ -1,0 +1,38 @@
+# The figures Footnote's `npm run eval:kappa` printed, as recorded in its committed docs (kappa-sources.md holds
+# the verbatim lines). Each value is the figure as the doc writes it; Yardstick compares its number with its own
+# figure formatted like eval:kappa (toFixed). `quote` must appear verbatim in kappa-sources.md and every value
+# must appear in its quote (tests/test_footnote_kappa.py).
+# Hand-transcribed by Claude on 2026-11-16 (Phase 3); the test guards the transcription.
+source: shanelabountyai/footnote @ 3c9b0c7 (docs/decisions.md D-39..D-42, scorecard, docs/WRITEUP.md)
+checks:
+  - set: sheet-1
+    judge: opus
+    values: {n: "n 20", raw: "raw agreement 90%", p_e: "p_e 0.820", kappa: "κ 0.44"}
+    disagree: [S-01, S-14]
+    quote: "**Opus: κ 0.44, n 20, raw agreement 90%, p_e 0.820.** It disagrees on S-01 (Shane partial, judge supported) and S-14 (Shane supported, judge partial)."
+  - set: sheet-1
+    judge: opus
+    values: {human_counts: "18 supported, 2 partial (S-01, S-11), 0 unsupported"}
+    quote: "**18 supported, 2 partial (S-01, S-11), 0 unsupported**"
+  - set: sheet-2
+    judge: opus
+    values: {n: "n 20", raw: "raw 75%", p_e: "p_e 0.750", kappa: "κ 0.00"}
+    quote: "**Sheet 2 (unassisted, Opus): n 20, raw 75%, p_e 0.750, κ 0.00.**"
+  - set: sheet-2
+    judge: opus
+    values: {misses: "5 of 20"}
+    disagree: [S-23, S-31, S-22, S-33, S-39]
+    quote: "**miss rate: 5 of 20 judge-`supported` sentences Shane would not support** (S-23, S-31 unsupported; S-22, S-33, S-39 partial)"
+  - set: pooled
+    judge: opus
+    values: {n: "n 40", raw: "raw 83%", p_e: "p_e 0.790", kappa: "κ 0.17"}
+    quote: "**Pooled (Opus): n 40, raw 83%, p_e 0.790, κ 0.17**"
+  - set: pooled
+    judge: opus
+    values: {kappa: "κ 0.17", n: "n 40", raw: "raw agreement 83%"}
+    quote: "κ 0.17 n 40, raw agreement 83%"
+  - set: sheet-1
+    judge: sonnet
+    values: {n: "n 15", raw: "raw 87%", p_e: "p_e 0.876", kappa: "κ −0.07"}
+    disagree: [S-11, S-14]
+    quote: "**Sonnet: κ −0.07, n 15, raw 87%, p_e 0.876.** It disagrees on S-11 (Shane partial, judge supported: it missed the wages condition) and S-14."
