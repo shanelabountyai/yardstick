@@ -40,6 +40,18 @@ Per scorer: hits / total over the items it applied to. Report-only scorers never
 {% endfor %}
 {% endif %}
 
+{% if run.judges %}
+## Judges
+
+LLM-judge scores are report-only per item; a gate rule on a judge rate gates only if the judge's kappa clears the floor (YS-05).
+
+| Scorer | Judge | Prompt hash | Units judged | No valid label | Not judged (budget) | Calls | Spend / cap (run) |
+|---|---|---|---|---|---|---|---|
+{% for key, j in run.judges.items() -%}
+| `{{ key }}` | {{ j.model }} ({{ j.source }}) | `{{ j.prompt_hash }}` | {{ j.units_judged }} | {{ j.units_invalid }} | {{ j.units_skipped_budget }} | {{ j.calls }} | ${{ "%.6f" | format(j.spent_usd) }} / ${{ "%.6f" | format(j.cap_usd) }}{{ " **over estimate**" if j.overrun }} |
+{% endfor %}
+{% endif %}
+
 {% if slice_rows %}
 ## Slices
 
@@ -68,7 +80,7 @@ Per scorer: hits / total over the items it applied to. Report-only scorers never
 | Rule | Current | Baseline | Items | Checks | Result |
 |---|---|---|---|---|---|
 {% for row in gate_rows -%}
-| `{{ row.label }}` | {{ row.current }} | {{ row.base }} | {{ row.n }} / min {{ row.min }} | {{ row.checks }} | {{ "pass" if row.passed else "**FAIL**" }} |
+| `{{ row.label }}` | {{ row.current }} | {{ row.base }} | {{ row.n }} / min {{ row.min }} | {{ row.checks }} | {% if row.report_only %}{{ "report-only: pass" if row.passed else "report-only: fail" }}{% else %}{{ "pass" if row.passed else "**FAIL**" }}{% endif %} |
 {% endfor %}
 {% endif %}
 

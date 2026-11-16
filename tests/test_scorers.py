@@ -15,7 +15,8 @@ def s(name: str, expected: Any, text: str = "", options: dict[str, Any] | None =
 
 
 def test_registry_has_all_phase1_scorers() -> None:
-    # Phase 1 scorers, plus the two Phase 2 field scorers (field-equals, label-rate). Still an exact list.
+    # Phase 1 scorers, the two Phase 2 field scorers (field-equals, label-rate) and Phase 3's llm-judge.
+    # Still an exact list (D-33).
     assert scorer_names() == sorted(
         [
             "exact",
@@ -27,10 +28,14 @@ def test_registry_has_all_phase1_scorers() -> None:
             "citation-grounded",
             "field-equals",
             "label-rate",
+            "llm-judge",
         ]
     )
     with pytest.raises(ScorerConfigError):
-        get_scorer("llm-judge")
+        get_scorer("no-such-scorer")
+    # llm-judge is registered, but scoring needs a judge session; called directly it refuses (D-34).
+    with pytest.raises(ScorerConfigError, match="needs a judge"):
+        get_scorer("llm-judge")(1.0, Output(text="x"), {})
 
 
 def test_exact() -> None:

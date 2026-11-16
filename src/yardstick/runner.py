@@ -6,14 +6,16 @@ from collections.abc import Mapping
 
 from yardstick.adapters.base import Adapter, ReportsRunMeta, RunMeta
 from yardstick.clock import Clock, SystemClock
-from yardstick.models import Item, ItemResult, Output, Run, Score, Suite, TargetInfo
-from yardstick.scorers import get_scorer
+from yardstick.models import LLM_JUDGE, Item, ItemResult, Output, Run, Score, Suite, TargetInfo
+from yardstick.scorers import ScorerConfigError, get_scorer
+from yardstick.scorers.llm_judge import JudgeSession
 
 NO_OUTPUT = "no output from target"
 
 
-def score_item(suite: Suite, item: Item, output: Output) -> ItemResult:
-    """Score one item. Report-only scores are recorded but do not decide ``passed`` or ``score`` (D-25)."""
+def score_item(suite: Suite, item: Item, output: Output, judge: JudgeSession | None = None) -> ItemResult:
+    """Score one item. Report-only scores are recorded but do not decide ``passed`` or ``score`` (D-25).
+    ``llm-judge`` scorers go through ``judge`` (Phase 3)."""
     scores: list[Score] = []
     for spec in suite.scorers:
         key = spec.expected_key
@@ -35,7 +37,15 @@ def score_item(suite: Suite, item: Item, output: Output) -> ItemResult:
                 )
             )
             continue
-        outcome = scorer(item.expected[key], output, spec.options)
+        labels: list[str | None] | None = None
+        if spec.name == LLM_JUDGE:
+            if judge is None:
+                raise ScorerConfigError(
+                    f"scorer {key!r} is an llm-judge: pass --judge and --judge-budget-usd (D-34)"
+                )
+            outcome, labels = judge.score(key, item, item.expected[key], output, spec.options)
+        else:
+            outcome = scorer(item.expected[key], output, spec.options)
         if not outcome.applicable:
             continue
         scores.append(
@@ -48,6 +58,7 @@ def score_item(suite: Suite, item: Item, output: Output) -> ItemResult:
                 hits=outcome.hits,
                 total=outcome.total,
                 report_only=spec.report_only,
+                labels=labels or None,
             )
         )
     gating = [s for s in scores if not s.report_only]
@@ -73,10 +84,14 @@ def build_run(
     prompt_hash: str | None = None,
     git_sha: str | None = None,
     reported_cost_usd: float | None = None,
+    judge: JudgeSession | None = None,
 ) -> Run:
     clock = clock or SystemClock()
     started = clock.now().isoformat().replace("+00:00", "Z")
-    results = [score_item(suite, item, outputs.get(item.id, Output(error=NO_OUTPUT))) for item in suite.items]
+    results = [
+        score_item(suite, item, outputs.get(item.id, Output(error=NO_OUTPUT)), judge) for item in suite.items
+    ]
+    judges = judge.records() if judge is not None else {}
     payload = {
         "schema_version": 1,
         "suite_name": suite.name,
@@ -90,6 +105,8 @@ def build_run(
     cost = None if reported_cost_usd is None else round(reported_cost_usd, 6)
     if cost is not None:
         payload["reported_cost_usd"] = cost
+    if judges:
+        payload["judges"] = {k: v.model_dump(mode="json") for k, v in judges.items()}
     return Run(
         run_id=Run.compute_id(payload),
         started_at=started,
@@ -101,6 +118,7 @@ def build_run(
         prompt_hash=prompt_hash,
         git_sha=git_sha,
         reported_cost_usd=cost,
+        judges=judges,
     )
 
 
@@ -112,6 +130,7 @@ def run_suite(
     model: str | None = None,
     prompt_hash: str | None = None,
     git_sha: str | None = None,
+    judge: JudgeSession | None = None,
 ) -> Run:
     outputs = adapter.produce(suite.items)
     meta = adapter.run_meta() if isinstance(adapter, ReportsRunMeta) else RunMeta()
@@ -124,4 +143,5 @@ def run_suite(
         prompt_hash=prompt_hash,
         git_sha=git_sha,
         reported_cost_usd=meta.cost_usd,
+        judge=judge,
     )

@@ -1,4 +1,4 @@
-"""Deterministic scorers (Phase 1; ``field-equals`` and ``label-rate`` in Phase 2). ``llm-judge``: Phase 3."""
+"""Scorers: deterministic (Phase 1; ``field-equals``, ``label-rate`` in Phase 2), ``llm-judge`` (Phase 3)."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from yardstick.scorers.contains_all import ContainsAll
 from yardstick.scorers.exact import Exact
 from yardstick.scorers.fields import FieldEquals, LabelRate
 from yardstick.scorers.json_schema import JsonSchema
+from yardstick.scorers.llm_judge import LlmJudge
 from yardstick.scorers.numeric import NumericTolerance
 from yardstick.scorers.refusal import RefusalExpected
 from yardstick.scorers.regex import Regex
@@ -24,6 +25,7 @@ _REGISTRY: dict[str, Scorer] = {
         CitationGrounded(),
         FieldEquals(),
         LabelRate(),
+        LlmJudge(),
     )
 }
 

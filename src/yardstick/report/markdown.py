@@ -203,6 +203,8 @@ def build(
             for c in rr.checks:
                 mark = "ok" if c.passed else "FAIL"
                 parts.append(f"{c.check}: {_humanise(rr.rule.metric, c.check, c.detail)} ({mark})")
+            if rr.note:
+                parts.append(rr.note)
             gate_rows.append(
                 _Row(
                     {
@@ -215,6 +217,7 @@ def build(
                         "min": rr.min_items,
                         "checks": cell("; ".join(parts)),
                         "passed": rr.passed,
+                        "report_only": rr.report_only,
                     }
                 )
             )

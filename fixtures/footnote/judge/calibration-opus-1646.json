@@ -1,0 +1,156 @@
+{
+  "judge_model": "claude-opus-5-5",
+  "prompt_hash": "071689f33855",
+  "judge_source": "replay answers-hybrid-claude-sonnet-5-5-theta-on-cd1252c6a407-2026-10-23T1646.json (shanelabountyai/footnote @ 3c9b0c7: answers-hybrid-claude-sonnet-5-5-theta-on-cd1252c6a407-2026-10-23T1646.json)",
+  "labels": [
+    "supported",
+    "partial",
+    "unsupported"
+  ],
+  "sets": [
+    {
+      "name": "sheet-1",
+      "n": 20,
+      "missing": 0,
+      "observed": 0.9,
+      "expected": 0.8200000000000001,
+      "kappa": 0.44444444444444436,
+      "human_counts": {
+        "supported": 18,
+        "partial": 2,
+        "unsupported": 0
+      },
+      "judge_counts": {
+        "supported": 18,
+        "partial": 2,
+        "unsupported": 0
+      },
+      "disagreements": [
+        {
+          "key": "GA-03:1",
+          "ref": "S-01",
+          "human": "partial",
+          "judge": "supported"
+        },
+        {
+          "key": "GM-07:1",
+          "ref": "S-14",
+          "human": "supported",
+          "judge": "partial"
+        }
+      ]
+    },
+    {
+      "name": "sheet-2",
+      "n": 20,
+      "missing": 0,
+      "observed": 0.75,
+      "expected": 0.75,
+      "kappa": 0.0,
+      "human_counts": {
+        "supported": 15,
+        "partial": 3,
+        "unsupported": 2
+      },
+      "judge_counts": {
+        "supported": 20,
+        "partial": 0,
+        "unsupported": 0
+      },
+      "disagreements": [
+        {
+          "key": "GV-04:0",
+          "ref": "S-22",
+          "human": "partial",
+          "judge": "supported"
+        },
+        {
+          "key": "GP-05:0",
+          "ref": "S-23",
+          "human": "unsupported",
+          "judge": "supported"
+        },
+        {
+          "key": "GM-03:0",
+          "ref": "S-31",
+          "human": "unsupported",
+          "judge": "supported"
+        },
+        {
+          "key": "GM-07:0",
+          "ref": "S-33",
+          "human": "partial",
+          "judge": "supported"
+        },
+        {
+          "key": "GM-04:3",
+          "ref": "S-39",
+          "human": "partial",
+          "judge": "supported"
+        }
+      ]
+    }
+  ],
+  "pooled": {
+    "name": "pooled",
+    "n": 40,
+    "missing": 0,
+    "observed": 0.825,
+    "expected": 0.7899999999999999,
+    "kappa": 0.16666666666666677,
+    "human_counts": {
+      "supported": 33,
+      "partial": 5,
+      "unsupported": 2
+    },
+    "judge_counts": {
+      "supported": 38,
+      "partial": 2,
+      "unsupported": 0
+    },
+    "disagreements": [
+      {
+        "key": "GA-03:1",
+        "ref": "S-01",
+        "human": "partial",
+        "judge": "supported"
+      },
+      {
+        "key": "GM-07:1",
+        "ref": "S-14",
+        "human": "supported",
+        "judge": "partial"
+      },
+      {
+        "key": "GV-04:0",
+        "ref": "S-22",
+        "human": "partial",
+        "judge": "supported"
+      },
+      {
+        "key": "GP-05:0",
+        "ref": "S-23",
+        "human": "unsupported",
+        "judge": "supported"
+      },
+      {
+        "key": "GM-03:0",
+        "ref": "S-31",
+        "human": "unsupported",
+        "judge": "supported"
+      },
+      {
+        "key": "GM-07:0",
+        "ref": "S-33",
+        "human": "partial",
+        "judge": "supported"
+      },
+      {
+        "key": "GM-04:3",
+        "ref": "S-39",
+        "human": "partial",
+        "judge": "supported"
+      }
+    ]
+  }
+}

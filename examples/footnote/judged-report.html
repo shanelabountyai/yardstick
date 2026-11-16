@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yardstick report: footnote-golden-judged</title>
+<style>
+:root { --bg: #ffffff; --fg: #1d2129; --muted: #5b6270; --line: #d9dde3; --panel: #f5f7fa;
+  --bar: #3b6fd8; --base: #1d2129; --track: #e9edf2; --pass: #1f7a3f; --fail: #b3261e; --warn-bg: #fff4d6; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #14171c; --fg: #e6e8eb; --muted: #9aa2ad; --line: #2c323b; --panel: #1b1f26;
+    --bar: #7aa2ff; --base: #e6e8eb; --track: #262c35; --pass: #5cc483; --fail: #ff8a80; --warn-bg: #3a3218; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 1.5rem; margin: 0 0 4px; }
+h2 { font-size: 1.15rem; margin: 32px 0 8px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; overflow-wrap: anywhere; }
+.badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-weight: 600; color: var(--bg); }
+.badge.pass { background: var(--pass); } .badge.fail { background: var(--fail); }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 0.85rem; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fail-text { color: var(--fail); font-weight: 600; } .pass-text { color: var(--pass); }
+.warn { background: var(--warn-bg); padding: 8px 12px; border-radius: 6px; margin: 8px 0; }
+.muted { color: var(--muted); }
+figure { margin: 12px 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+figcaption { font-weight: 600; margin-bottom: 6px; }
+svg { width: 100%; height: auto; display: block; }
+svg text { fill: var(--fg); font-size: 13px; font-family: inherit; }
+svg .track { fill: var(--track); } svg .bar { fill: var(--bar); }
+svg .base { stroke: var(--base); stroke-width: 2; }
+.legend { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+details summary { cursor: pointer; color: var(--muted); }
+footer { margin-top: 40px; font-size: 0.85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+<h1>Yardstick report: footnote-golden-judged</h1>
+<p><span class="badge fail">Gate failed</span></p>
+<div class="table-wrap"><table>
+<tr><th>Run</th><td><code>sha256:64fa2324dc9fde69</code></td></tr>
+<tr><th>Suite</th><td><code>footnote-golden-judged</code> (<code>sha256:0da245413c97</code>)</td></tr>
+<tr><th>Target</th><td><code>footnote-hybrid-sonnet-theta-on</code> (results-file)</td></tr>
+<tr><th>Model</th><td>claude-sonnet-5-5</td></tr>
+<tr><th>Prompt hash</th><td>not reported</td></tr>
+<tr><th>Git SHA</th><td>not reported</td></tr>
+<tr><th>Started</th><td>2026-11-16T00:00:00Z</td></tr>
+<tr><th>Items</th><td>41 (0 target errors)</td></tr>
+</table></div>
+
+<h2>Summary</h2>
+<div class="table-wrap"><table>
+<tr><th>Metric</th><th>Value</th></tr>
+<tr><td>Pass rate</td><td class="num">68.3%</td></tr>
+<tr><td>Mean score</td><td class="num">68.3%</td></tr>
+<tr><td>Latency p50</td><td class="num">not reported</td></tr>
+<tr><td>Latency p95</td><td class="num">not reported</td></tr>
+<tr><td>Cost total</td><td class="num">$0.633310 (run total reported by target)</td></tr>
+<tr><td>Cost per item</td><td class="num">$0.015447 (run total reported by target)</td></tr>
+</table></div>
+
+<figure>
+<figcaption>Pass rate by slice</figcaption>
+<svg viewBox="0 0 640 190" role="img" aria-label="Pass rate by slice">
+<text x="0" y="20">A</text>
+<rect class="track" x="220" y="7" width="300" height="16" rx="3"></rect>
+<rect class="bar" x="220" y="7" width="214.29" height="16" rx="3"></rect><text x="528" y="20">71.4%</text>
+<text x="0" y="46">A+M</text>
+<rect class="track" x="220" y="33" width="300" height="16" rx="3"></rect>
+<rect class="bar" x="220" y="33" width="190.91" height="16" rx="3"></rect><text x="528" y="46">63.6%</text>
+<text x="0" y="72">A+M+V</text>
+<rect class="track" x="220" y="59" width="300" height="16" rx="3"></rect>
+<rect class="bar" x="220" y="59" width="171.43" height="16" rx="3"></rect><text x="528" y="72">57.1%</text>
+<text x="0" y="98">M</text>
+<rect class="track" x="220" y="85" width="300" height="16" rx="3"></rect>
+<rect class="bar" x="220" y="85" width="150.0" height="16" rx="3"></rect><text x="528" y="98">50.0%</text>
+<text x="0" y="124">P</text>
+<rect class="track" x="220" y="111" width="300" height="16" rx="3"></rect>
+<rect class="bar" x="220" y="111" width="300.0" height="16" rx="3"></rect><text x="528" y="124">100.0%</text>
+<text x="0" y="150">U</text>
+<rect class="track" x="220" y="137" width="300" height="16" rx="3"></rect>
+<rect class="bar" x="220" y="137" width="262.5" height="16" rx="3"></rect><text x="528" y="150">87.5%</text>
+<text x="0" y="176">V</text>
+<rect class="track" x="220" y="163" width="300" height="16" rx="3"></rect>
+<rect class="bar" x="220" y="163" width="100.0" height="16" rx="3"></rect><text x="528" y="176">33.3%</text>
+</svg>
+<div class="legend">Bar: this run. Scale 0–100%.</div>
+</figure>
+<figure>
+<figcaption>Rate by scorer</figcaption>
+<svg viewBox="0 0 640 164" role="img" aria-label="Rate by scorer">
+<text x="0" y="20">judge (report-only)</text>
+<rect class="track" x="220" y="7" width="300" height="16" rx="3"></rect>
+<rect class="bar" x="220" y="7" width="289.09" height="16" rx="3"></rect><text x="528" y="20">96.4% (53/55)</text>
+<text x="0" y="46">out-of-scope</text>
+<rect class="track" x="220" y="33" width="300" height="16" rx="3"></rect>
+<rect class="bar" x="220" y="33" width="0.0" height="16" rx="3"></rect><text x="528" y="46">0.0% (0/1)</text>
+<text x="0" y="72">pre-call (report-only)</text>
+<rect class="track" x="220" y="59" width="300" height="16" rx="3"></rect>
+<rect class="bar" x="220" y="59" width="131.71" height="16" rx="3"></rect><text x="528" y="72">43.9% (18/41)</text>
+<text x="0" y="98">refusal</text>
+<rect class="track" x="220" y="85" width="300" height="16" rx="3"></rect>
+<rect class="bar" x="220" y="85" width="210.0" height="16" rx="3"></rect><text x="528" y="98">70.0% (28/40)</text>
+<text x="0" y="124">refusal-code (report-only)</text>
+<rect class="track" x="220" y="111" width="300" height="16" rx="3"></rect>
+<rect class="bar" x="220" y="111" width="214.29" height="16" rx="3"></rect><text x="528" y="124">71.4% (5/7)</text>
+<text x="0" y="150">support (report-only)</text>
+<rect class="track" x="220" y="137" width="300" height="16" rx="3"></rect>
+<rect class="bar" x="220" y="137" width="288.24" height="16" rx="3"></rect><text x="528" y="150">96.1% (49/51)</text>
+</svg>
+<div class="legend">Bar: this run. Scale 0–100%.</div>
+</figure>
+
+<h2>Rates</h2>
+<p class="muted">Per scorer: hits / total over the items it applied to. Report-only scorers never decide an item's pass.</p>
+<div class="table-wrap"><table>
+<tr><th>Scorer</th><th>Items</th><th>Rate</th></tr>
+<tr><td><code>judge (report-only)</code></td><td class="num">19</td><td class="num">96.4% (53/55)</td></tr>
+<tr><td><code>out-of-scope</code></td><td class="num">1</td><td class="num">0.0% (0/1)</td></tr>
+<tr><td><code>pre-call (report-only)</code></td><td class="num">41</td><td class="num">43.9% (18/41)</td></tr>
+<tr><td><code>refusal</code></td><td class="num">40</td><td class="num">70.0% (28/40)</td></tr>
+<tr><td><code>refusal-code (report-only)</code></td><td class="num">7</td><td class="num">71.4% (5/7)</td></tr>
+<tr><td><code>support (report-only)</code></td><td class="num">16</td><td class="num">96.1% (49/51)</td></tr>
+</table></div>
+
+<h2>Slices</h2>
+<div class="table-wrap"><table>
+<tr><th>Slice</th><th>Items</th><th>Pass rate</th><th>Mean score</th></tr>
+<tr><td>A</td><td class="num">14</td><td class="num">71.4%</td><td class="num">71.4%</td></tr>
+<tr><td>A+M</td><td class="num">22</td><td class="num">63.6%</td><td class="num">63.6%</td></tr>
+<tr><td>A+M+V</td><td class="num">28</td><td class="num">57.1%</td><td class="num">57.1%</td></tr>
+<tr><td>M</td><td class="num">8</td><td class="num">50.0%</td><td class="num">50.0%</td></tr>
+<tr><td>P</td><td class="num">5</td><td class="num">100.0%</td><td class="num">100.0%</td></tr>
+<tr><td>U</td><td class="num">8</td><td class="num">87.5%</td><td class="num">87.5%</td></tr>
+<tr><td>V</td><td class="num">6</td><td class="num">33.3%</td><td class="num">33.3%</td></tr>
+</table></div>
+
+<details>
+<summary>Rates by slice (27 rows)</summary>
+<div class="table-wrap"><table>
+<tr><th>Slice</th><th>Scorer</th><th>Items</th><th>Rate</th></tr>
+<tr><td>A</td><td><code>judge (report-only)</code></td><td class="num">10</td><td class="num">96.9% (31/32)</td></tr>
+<tr><td>A</td><td><code>pre-call (report-only)</code></td><td class="num">14</td><td class="num">21.4% (3/14)</td></tr>
+<tr><td>A</td><td><code>refusal</code></td><td class="num">14</td><td class="num">71.4% (10/14)</td></tr>
+<tr><td>A</td><td><code>support (report-only)</code></td><td class="num">10</td><td class="num">96.9% (31/32)</td></tr>
+<tr><td>A+M</td><td><code>judge (report-only)</code></td><td class="num">14</td><td class="num">95.7% (45/47)</td></tr>
+<tr><td>A+M</td><td><code>pre-call (report-only)</code></td><td class="num">22</td><td class="num">27.3% (6/22)</td></tr>
+<tr><td>A+M</td><td><code>refusal</code></td><td class="num">22</td><td class="num">63.6% (14/22)</td></tr>
+<tr><td>A+M</td><td><code>support (report-only)</code></td><td class="num">14</td><td class="num">95.7% (45/47)</td></tr>
+<tr><td>A+M+V</td><td><code>judge (report-only)</code></td><td class="num">16</td><td class="num">96.1% (49/51)</td></tr>
+<tr><td>A+M+V</td><td><code>pre-call (report-only)</code></td><td class="num">28</td><td class="num">35.7% (10/28)</td></tr>
+<tr><td>A+M+V</td><td><code>refusal</code></td><td class="num">28</td><td class="num">57.1% (16/28)</td></tr>
+<tr><td>A+M+V</td><td><code>support (report-only)</code></td><td class="num">16</td><td class="num">96.1% (49/51)</td></tr>
+<tr><td>M</td><td><code>judge (report-only)</code></td><td class="num">4</td><td class="num">93.3% (14/15)</td></tr>
+<tr><td>M</td><td><code>pre-call (report-only)</code></td><td class="num">8</td><td class="num">37.5% (3/8)</td></tr>
+<tr><td>M</td><td><code>refusal</code></td><td class="num">8</td><td class="num">50.0% (4/8)</td></tr>
+<tr><td>M</td><td><code>support (report-only)</code></td><td class="num">4</td><td class="num">93.3% (14/15)</td></tr>
+<tr><td>P</td><td><code>judge (report-only)</code></td><td class="num">3</td><td class="num">100.0% (4/4)</td></tr>
+<tr><td>P</td><td><code>pre-call (report-only)</code></td><td class="num">5</td><td class="num">40.0% (2/5)</td></tr>
+<tr><td>P</td><td><code>refusal</code></td><td class="num">5</td><td class="num">100.0% (5/5)</td></tr>
+<tr><td>U</td><td><code>out-of-scope</code></td><td class="num">1</td><td class="num">0.0% (0/1)</td></tr>
+<tr><td>U</td><td><code>pre-call (report-only)</code></td><td class="num">8</td><td class="num">75.0% (6/8)</td></tr>
+<tr><td>U</td><td><code>refusal</code></td><td class="num">7</td><td class="num">100.0% (7/7)</td></tr>
+<tr><td>U</td><td><code>refusal-code (report-only)</code></td><td class="num">7</td><td class="num">71.4% (5/7)</td></tr>
+<tr><td>V</td><td><code>judge (report-only)</code></td><td class="num">2</td><td class="num">100.0% (4/4)</td></tr>
+<tr><td>V</td><td><code>pre-call (report-only)</code></td><td class="num">6</td><td class="num">66.7% (4/6)</td></tr>
+<tr><td>V</td><td><code>refusal</code></td><td class="num">6</td><td class="num">33.3% (2/6)</td></tr>
+<tr><td>V</td><td><code>support (report-only)</code></td><td class="num">2</td><td class="num">100.0% (4/4)</td></tr>
+</table></div>
+</details>
+
+<h2>Judges</h2>
+<p>LLM-judge scores are report-only per item; a gate rule on a judge rate gates only if the judge's kappa clears the floor (YS-05).</p>
+<div class="table-wrap"><table>
+<tr><th>Scorer</th><th>Judge</th><th>Prompt hash</th><th>Units judged</th><th>No valid label</th><th>Not judged (budget)</th><th>Calls</th><th>Spend / cap (run)</th></tr>
+<tr><td><code>judge</code></td><td>claude-opus-5-5 (replay verdicts-opus-1646.json (shanelabountyai/footnote @ 3c9b0c7: eval/results/answers-hybrid-claude-sonnet-5-5-theta-on-cd1252c6a407-2026-10-23T1646.json))</td><td><code>071689f33855</code></td><td class="num">55</td><td class="num">0</td><td class="num">0</td><td class="num">55</td><td class="num">$0.000000 / $0.000000</td></tr>
+</table></div>
+<h2>Gate</h2>
+<div class="table-wrap"><table>
+<tr><th>Rule</th><th>Current</th><th>Baseline</th><th>Items</th><th>Checks</th><th>Result</th></tr>
+<tr><td><code>rate:refusal[A+M]</code></td><td class="num">63.6%</td><td class="num">no baseline</td><td class="num">22 / min 8</td><td>min_items: 22 item(s), need &gt;= 8 (ok); floor: 63.6% &gt;= 90.0% (FAIL)</td><td><span class="fail-text">FAIL</span></td></tr>
+<tr><td><code>pass_rate[U]</code></td><td class="num">87.5%</td><td class="num">no baseline</td><td class="num">8 / min 8</td><td>min_items: 8 item(s), need &gt;= 8 (ok); floor: 87.5% &gt;= 90.0% (FAIL)</td><td><span class="fail-text">FAIL</span></td></tr>
+<tr><td><code>rate:judge[A+M+V]</code></td><td class="num">96.1%</td><td class="num">no baseline</td><td class="num">16 / min 8</td><td>min_items: 16 item(s), need &gt;= 8 (ok); floor: 96.1% &gt;= 90.0% (ok); report-only (YS-05): judge kappa 0.17 (n 40) &lt; floor 0.6</td><td>report-only: pass</td></tr>
+</table></div>
+
+
+<h2>Failing items</h2>
+<div class="table-wrap"><table>
+<tr><th>Item</th><th>Slices</th><th>Failed checks</th></tr>
+<tr><td><code>GA-02</code></td><td>A, A+M, A+M+V</td><td>refusal: expected refusal=False, got refusal=True (via flag)</td></tr>
+<tr><td><code>GA-06</code></td><td>A, A+M, A+M+V</td><td>refusal: expected refusal=False, got refusal=True (via flag)</td></tr>
+<tr><td><code>GA-09</code></td><td>A, A+M, A+M+V</td><td>refusal: expected refusal=False, got refusal=True (via flag)</td></tr>
+<tr><td><code>GA-11</code></td><td>A, A+M, A+M+V</td><td>refusal: expected refusal=False, got refusal=True (via flag)</td></tr>
+<tr><td><code>GM-02</code></td><td>A+M, A+M+V, M</td><td>refusal: expected refusal=False, got refusal=True (via flag)</td></tr>
+<tr><td><code>GM-05</code></td><td>A+M, A+M+V, M</td><td>refusal: expected refusal=False, got refusal=True (via flag)</td></tr>
+<tr><td><code>GM-06</code></td><td>A+M, A+M+V, M</td><td>refusal: expected refusal=False, got refusal=True (via flag)</td></tr>
+<tr><td><code>GM-08</code></td><td>A+M, A+M+V, M</td><td>refusal: expected refusal=False, got refusal=True (via flag)</td></tr>
+<tr><td><code>GU-03</code></td><td>U</td><td>out-of-scope: refusal_code: expected &#34;OUT_OF_SCOPE&#34;, got &#34;NO_RELEVANT_PASSAGE&#34;</td></tr>
+<tr><td><code>GV-02</code></td><td>A+M+V, V</td><td>refusal: expected refusal=False, got refusal=True (via flag)</td></tr>
+<tr><td><code>GV-03</code></td><td>A+M+V, V</td><td>refusal: expected refusal=False, got refusal=True (via flag)</td></tr>
+<tr><td><code>GV-05</code></td><td>A+M+V, V</td><td>refusal: expected refusal=False, got refusal=True (via flag)</td></tr>
+<tr><td><code>GV-06</code></td><td>A+M+V, V</td><td>refusal: expected refusal=False, got refusal=True (via flag)</td></tr>
+</table></div>
+
+<footer>Generated by Yardstick 0.1.0. Cost in USD; latency in integer ms; "not reported" means the target did not report it. Single static file: no scripts, no external resources.</footer>
+</main>
+</body>
+</html>

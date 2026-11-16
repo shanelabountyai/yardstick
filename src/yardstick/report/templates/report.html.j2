@@ -119,12 +119,22 @@ footer { margin-top: 40px; font-size: 0.85rem; color: var(--muted); }
 </details>
 {% endif %}
 
+{% if run.judges %}
+<h2>Judges</h2>
+<p>LLM-judge scores are report-only per item; a gate rule on a judge rate gates only if the judge's kappa clears the floor (YS-05).</p>
+<div class="table-wrap"><table>
+<tr><th>Scorer</th><th>Judge</th><th>Prompt hash</th><th>Units judged</th><th>No valid label</th><th>Not judged (budget)</th><th>Calls</th><th>Spend / cap (run)</th></tr>
+{% for key, j in run.judges.items() %}
+<tr><td><code>{{ key }}</code></td><td>{{ j.model }} ({{ j.source }})</td><td><code>{{ j.prompt_hash }}</code></td><td class="num">{{ j.units_judged }}</td><td class="num">{{ j.units_invalid }}</td><td class="num">{{ j.units_skipped_budget }}</td><td class="num">{{ j.calls }}</td><td class="num">${{ "%.6f" | format(j.spent_usd) }} / ${{ "%.6f" | format(j.cap_usd) }}{{ " (over estimate)" if j.overrun }}</td></tr>
+{% endfor %}
+</table></div>
+{% endif %}
 {% if gate %}
 <h2>Gate</h2>
 <div class="table-wrap"><table>
 <tr><th>Rule</th><th>Current</th><th>Baseline</th><th>Items</th><th>Checks</th><th>Result</th></tr>
 {% for row in gate_rows %}
-<tr><td><code>{{ row.label }}</code></td><td class="num">{{ row.current }}</td><td class="num">{{ row.base }}</td><td class="num">{{ row.n }} / min {{ row.min }}</td><td>{{ row.checks }}</td><td>{% if row.passed %}<span class="pass-text">pass</span>{% else %}<span class="fail-text">FAIL</span>{% endif %}</td></tr>
+<tr><td><code>{{ row.label }}</code></td><td class="num">{{ row.current }}</td><td class="num">{{ row.base }}</td><td class="num">{{ row.n }} / min {{ row.min }}</td><td>{{ row.checks }}</td><td>{% if row.report_only %}report-only: {{ "pass" if row.passed else "fail" }}{% elif row.passed %}<span class="pass-text">pass</span>{% else %}<span class="fail-text">FAIL</span>{% endif %}</td></tr>
 {% endfor %}
 </table></div>
 {% endif %}

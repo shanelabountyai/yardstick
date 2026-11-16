@@ -11,7 +11,8 @@ from yardstick.report.markdown import render
 from yardstick.runner import build_run
 from yardstick.suite_io import load_suite, run_to_json
 
-NEW_KEYS = {"fields", "hits", "total", "report_only", "reported_cost_usd"}
+# Phase 2 additions, then Phase 3 (labels on judge scores, judges on runs).
+NEW_KEYS = {"fields", "hits", "total", "report_only", "reported_cost_usd", "labels", "judges"}
 
 
 def _keys(value: object) -> set[str]:

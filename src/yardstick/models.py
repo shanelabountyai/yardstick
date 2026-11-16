@@ -19,6 +19,9 @@ from yardstick.hashing import content_hash
 
 RUN_SCHEMA_VERSION = 1
 
+#: Registry name of the LLM-judge scorer (Phase 3).
+LLM_JUDGE = "llm-judge"
+
 MetricName = Literal[
     "pass_rate",
     "mean_score",
@@ -145,6 +148,12 @@ class Suite(_Strict):
         keys = [s.expected_key for s in self.scorers]
         if len(keys) != len(set(keys)):
             raise ValueError("scorer keys must be unique; set `key` when a scorer is used twice")
+        for spec in self.scorers:
+            if spec.name == LLM_JUDGE and not spec.report_only:
+                raise ValueError(
+                    f"scorer {spec.expected_key!r}: llm-judge scores must be report_only: true; a judge "
+                    "reaches a gate only through a rate:<key> rule, which YS-05 governs (D-36)"
+                )
         known = set(keys)
         for item in self.items:
             unknown = set(item.expected) - known
@@ -211,7 +220,7 @@ class Score(_Additive):
     a score counts as 1/1 when passed and 0/1 when not (see :meth:`counts`).
     """
 
-    _omit_if_empty: ClassVar[tuple[str, ...]] = ("hits", "total", "report_only")
+    _omit_if_empty: ClassVar[tuple[str, ...]] = ("hits", "total", "report_only", "labels")
 
     key: str
     scorer: str
@@ -221,6 +230,9 @@ class Score(_Additive):
     hits: int | None = None
     total: int | None = None
     report_only: bool = False
+    #: Per-unit labels from an ``llm-judge`` scorer (``None`` = no valid label for that unit), so kappa can be
+    #: computed from a run (Phase 3).
+    labels: list[str | None] | None = None
 
     @field_validator("score")
     @classmethod
@@ -259,11 +271,28 @@ class TargetInfo(_Strict):
     detail: str = ""
 
 
+class JudgeRecord(_Strict):
+    """What an ``llm-judge`` scorer key did in one run: which judge (model + prompt hash, the identity kappa
+    is computed for), what it cost against the cap, and how many units it could not judge (D-37)."""
+
+    model: str
+    prompt_hash: str
+    source: str
+    cap_usd: float
+    spent_usd: float
+    calls: int
+    units_judged: int
+    units_invalid: int
+    units_skipped_budget: int
+    overrun: bool = False
+
+
 class Run(_Additive):
     """One execution. ``reported_cost_usd`` is a run-level cost the target reported (e.g. Footnote's
-    ``spentUsd``); it is used only when items do not all report their own cost (D-27)."""
+    ``spentUsd``); it is used only when items do not all report their own cost (D-27). ``judges`` records each
+    ``llm-judge`` scorer key's judge identity and spend (Phase 3)."""
 
-    _omit_if_empty: ClassVar[tuple[str, ...]] = ("reported_cost_usd",)
+    _omit_if_empty: ClassVar[tuple[str, ...]] = ("reported_cost_usd", "judges")
 
     schema_version: int = RUN_SCHEMA_VERSION
     run_id: str
@@ -276,6 +305,7 @@ class Run(_Additive):
     started_at: str
     items: list[ItemResult]
     reported_cost_usd: float | None = None
+    judges: dict[str, JudgeRecord] = Field(default_factory=dict)
 
     @field_validator("reported_cost_usd")
     @classmethod
@@ -398,10 +428,29 @@ class GateRule(_Strict):
         return self.metric if self.slice is None else f"{self.metric}[{self.slice}]"
 
 
-class GateConfig(_Strict):
+class JudgePolicy(_Strict):
+    """YS-05: a ``rate:<key>`` rule over an ``llm-judge`` score gates only when that judge's pooled kappa
+    (from a calibration file matching its model and prompt hash) is at least ``kappa_floor`` (D-06, D-40).
+    ``calibrations`` are paths relative to the gate file."""
+
+    kappa_floor: float = 0.6
+    calibrations: list[str] = Field(default_factory=list)
+
+    @field_validator("kappa_floor")
+    @classmethod
+    def _floor(cls, v: float) -> float:
+        if not -1.0 <= v <= 1.0:
+            raise ValueError("kappa_floor must be in [-1, 1]")
+        return v
+
+
+class GateConfig(_Additive):
+    _omit_if_empty: ClassVar[tuple[str, ...]] = ("judge",)
+
     #: Applies to every rule that does not set its own ``min_items``.
     min_items: int = 1
     rules: list[GateRule]
+    judge: JudgePolicy | None = None
 
     @field_validator("min_items")
     @classmethod
@@ -425,6 +474,9 @@ class RuleResult(_Strict):
     min_items: int
     passed: bool
     checks: list[CheckResult]
+    #: YS-05: the rule is shown but cannot affect the gate; ``note`` says why (e.g. judge kappa below floor).
+    report_only: bool = False
+    note: str = ""
 
 
 class GateResult(_Strict):

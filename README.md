@@ -2,7 +2,7 @@
 
 An eval harness that sits on top of AI projects' own evals: one run format, baselines, side-by-side compare, and CI gates that fail on regressions.
 
-Build-log #26. Status: **Phase 2** (results-file adapter, Footnote mapping, HTML report) on branch `phase-2`; Phase 1 (core, offline) is on `main`. Spec in `docs/PRD.md`, plans in `docs/PHASE1_PLAN.md` and `docs/PHASE2_PLAN.md`, defaults in `docs/DECISIONS.md`.
+Build-log #26. Status: **Phase 3** (`llm-judge` with a budget cap, human grades, kappa, YS-05) on branch `phase-3`; Phases 1-2 (core; results-file adapter, Footnote mapping, HTML report) are on `main`. Spec in `docs/PRD.md`, plans in `docs/PHASE1_PLAN.md`, `docs/PHASE2_PLAN.md` and `docs/PHASE3_PLAN.md`, defaults in `docs/DECISIONS.md`.
 
 ## Quick start
 
@@ -43,6 +43,39 @@ Result: [`examples/footnote/reproduction.md`](examples/footnote/reproduction.md)
 report against Footnote's own targets: [`report.md`](examples/footnote/report.md) and
 [`report.html`](examples/footnote/report.html) (one static file, inline SVG, no scripts).
 
+## Judges and calibration (Phase 3)
+
+An `llm-judge` scorer labels each unit of an output (a sentence, or the whole text) against a rubric. Its scores are
+report-only per item; a gate rule on its rate (`rate:<key>`) **gates only when the judge's Cohen's kappa against human
+grades clears the floor** (YS-05; default 0.6). Below the floor, or with no calibration, the rule is shown as
+"report-only" and never changes the verdict. Every run that uses a judge needs a spend cap.
+
+```bash
+# replay Footnote's committed Opus verdicts through the llm-judge scorer: zero calls, $0 under a $0 cap
+uv run yardstick run -s fixtures/footnote/judge-suite.yaml --mapping footnote --target-name hybrid-sonnet \
+  --results fixtures/footnote/results/answers-hybrid-claude-sonnet-5-5-theta-on-cd1252c6a407-2026-10-23T1646.json \
+  --judge replay:fixtures/footnote/judge/verdicts-opus-1646.json --judge-budget-usd 0 -o runs/judged.json
+# kappa per grade set and pooled -> a calibration file a gate can use
+uv run yardstick kappa --grades fixtures/footnote/grades/sheet-1.yaml --grades fixtures/footnote/grades/sheet-2.yaml \
+  --run runs/judged.json --key judge -o runs/calibration.json
+uv run yardstick gate runs/judged.json -c fixtures/gates/footnote-judged.yaml   # judge rule: report-only (κ 0.17 < 0.6)
+# the Phase 3 gate: Footnote's eval:kappa figures, reproduced
+uv run yardstick footnote kappa --golden fixtures/footnote/golden.json \
+  --answers fixtures/footnote/results/answers-hybrid-claude-sonnet-5-5-theta-on-cd1252c6a407-2026-10-23T1646.json \
+  --sheet fixtures/footnote/grades/grades.md --sheet fixtures/footnote/grades/grades-2.md \
+  --reference fixtures/footnote/kappa-reference.yaml
+```
+
+Result: [`examples/footnote/kappa.md`](examples/footnote/kappa.md): sheet 1 κ 0.44 (n 20), sheet 2 κ 0.00 (n 20),
+pooled κ 0.17 (n 40, raw agreement 83%), all 19 recorded Opus figures match, 0 differ; the 5 Sonnet re-judge figures are
+not reproducible because Footnote never committed those verdicts. The gate report with the judge rule demoted:
+[`judged-report.md`](examples/footnote/judged-report.md).
+
+**Live judge (not run in this repo):** `--judge anthropic:MODEL --judge-price-in USD_PER_MTOK --judge-price-out
+USD_PER_MTOK --judge-budget-usd CAP` with `ANTHROPIC_API_KEY` set. Before each call the worst-case cost must fit
+under the cap; after it the actual cost from token usage is charged. Tests exercise this client only against a fake
+transport.
+
 Any other project's result JSON works with a mapping file (dotted paths):
 
 ```yaml
@@ -57,9 +90,10 @@ run_cost_usd: spentUsd
 
 ## Pieces
 
-- **Scorers** (deterministic): `exact`, `regex`, `json-schema`, `numeric-tolerance`, `contains-all`, `refusal-expected`, `citation-grounded`, `field-equals`, `label-rate`. Any scorer can be `report_only` (measured, never decides pass).
+- **Scorers** (deterministic): `exact`, `regex`, `json-schema`, `numeric-tolerance`, `contains-all`, `refusal-expected`, `citation-grounded`, `field-equals`, `label-rate`. Any scorer can be `report_only` (measured, never decides pass). **`llm-judge`** (always report-only per item) labels units through a judge behind an interface: replay, or the Anthropic Messages API, under a run-level budget cap.
+- **Calibration**: human grade sets, Cohen's kappa per judge (model + prompt hash), per set and pooled; gates honour YS-05.
 - **Metrics**: pass rate, mean score, per-slice, `rate:<scorer key>` (pooled hits/total, e.g. supported sentences), p50/p95 latency (integer ms), total and per-item cost (USD, 6 dp; a run-level total when the target only reports that). Unreported telemetry is "not reported", never 0.
-- **Gates**: `floor`, `max`, `max_drop` / `max_rise` vs baseline, `min_items`, on any metric including `rate:<key>` per slice. Fail closed.
+- **Gates**: `floor`, `max`, `max_drop` / `max_rise` vs baseline, `min_items`, on any metric including `rate:<key>` per slice. Fail closed. A judge rate gates only when its kappa clears `judge.kappa_floor`.
 - **Targets**: `command` (JSONL over stdin/stdout) and `results-file` (declarative mapping, or the built-in `footnote` mapping). `http` is not built yet.
 - **Reports**: markdown (PR comments, CI logs) and static HTML (`report --format html`, `gate --html-report`).
 
