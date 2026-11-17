@@ -25,3 +25,70 @@ jobs:
         run: uv run pytest
       - name: example report is up to date
         run: bash examples/make-example.sh && git diff --exit-code examples/
+
+  # Phase 4: the composite action (action.yml) tested against the support-bot fixture suite and the fake target.
+  action:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # the healthy gate posts (or updates) one comment on this repo's own PR
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: install only
+        uses: ./
+        with:
+          install-only: "true"
+      - name: healthy baseline (yardstick is on PATH after install-only)
+        run: |
+          yardstick run --suite fixtures/suites/support-bot.yaml --cmd "python3 fixtures/targets/fake_target.py" \
+            --target-name fake --no-git --out "$RUNNER_TEMP/healthy.json"
+      - name: gate a healthy run (must pass)
+        id: healthy
+        uses: ./
+        with:
+          suite: fixtures/suites/support-bot.yaml
+          gate-config: fixtures/gates/support-bot.yaml
+          command: python3 fixtures/targets/fake_target.py
+          target-name: fake
+          baseline: ${{ runner.temp }}/healthy.json
+          html-report-path: ${{ runner.temp }}/healthy.html
+          comment-tag: self-test
+      - name: gate a degraded run (must fail; fail-on-gate false keeps the job going)
+        id: degraded
+        uses: ./
+        with:
+          suite: fixtures/suites/support-bot.yaml
+          gate-config: fixtures/gates/support-bot.yaml
+          command: python3 fixtures/targets/fake_target.py --degrade
+          target-name: fake
+          baseline: ${{ runner.temp }}/healthy.json
+          comment: "false"
+          fail-on-gate: "false"
+          comment-tag: self-test-degraded
+      - name: bad input (no target) must fail the step
+        id: bad
+        continue-on-error: true
+        uses: ./
+        with:
+          suite: fixtures/suites/support-bot.yaml
+          gate-config: fixtures/gates/support-bot.yaml
+          comment: "false"
+          comment-tag: self-test-bad
+      - name: check the action's outputs
+        env:
+          H_PASSED: ${{ steps.healthy.outputs.passed }}
+          H_CODE: ${{ steps.healthy.outputs.exit-code }}
+          H_REPORT: ${{ steps.healthy.outputs.report }}
+          D_PASSED: ${{ steps.degraded.outputs.passed }}
+          D_CODE: ${{ steps.degraded.outputs.exit-code }}
+          D_REPORT: ${{ steps.degraded.outputs.report }}
+          BAD_OUTCOME: ${{ steps.bad.outcome }}
+          BAD_CODE: ${{ steps.bad.outputs.exit-code }}
+        run: |
+          set -euxo pipefail
+          test "$H_PASSED" = true && test "$H_CODE" = 0
+          grep -q '^\*\*Gate: PASSED\*\*' "$H_REPORT"
+          test -s "$RUNNER_TEMP/healthy.html"
+          test "$D_PASSED" = false && test "$D_CODE" = 1
+          grep -q '^\*\*Gate: FAILED\*\*' "$D_REPORT"
+          test "$BAD_OUTCOME" = failure && test "$BAD_CODE" = 2
