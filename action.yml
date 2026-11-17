@@ -1,0 +1,204 @@
+name: Yardstick gate
+description: >-
+  Score a suite with Yardstick, gate the run against thresholds and a pinned baseline, write the markdown report to
+  the job summary and post (or update) one pull-request comment with it. No secrets needed.
+author: shanelabountyai
+branding:
+  icon: check-square
+  color: green
+
+inputs:
+  suite:
+    description: Suite file (YAML or JSON). Required unless install-only.
+    required: false
+    default: ""
+  gate-config:
+    description: Gate config (thresholds) file. Required unless install-only.
+    required: false
+    default: ""
+  results:
+    description: Results-file target - a project's result JSON (use with mapping). Either this or command.
+    required: false
+    default: ""
+  mapping:
+    description: For results - 'footnote' or a mapping YAML file.
+    required: false
+    default: ""
+  command:
+    description: Command target - a program reading JSONL items and printing JSONL outputs. Either this or results.
+    required: false
+    default: ""
+  target-name:
+    description: Target name recorded in the run (and used to find a pinned baseline).
+    required: false
+    default: target
+  run-args:
+    description: >-
+      Extra arguments for `yardstick run`, split on whitespace (e.g. `--theta-prime 0.52` or
+      `--judge replay:verdicts.json --judge-budget-usd 0`). Paths with spaces are not supported here.
+    required: false
+    default: ""
+  baseline:
+    description: Baseline run JSON. Default - the pinned one under .yardstick/baselines/ if present.
+    required: false
+    default: ""
+  calibration:
+    description: Judge calibration JSON files for YS-05, one per line (gate configs can also list them).
+    required: false
+    default: ""
+  report-path:
+    description: Where to write the markdown report. Default - under $RUNNER_TEMP.
+    required: false
+    default: ""
+  html-report-path:
+    description: Also write the static HTML report here.
+    required: false
+    default: ""
+  run-path:
+    description: Where to write the run JSON. Default - under $RUNNER_TEMP.
+    required: false
+    default: ""
+  comment:
+    description: Post or update a PR comment with the report ('true' or 'false'). Skipped outside pull requests.
+    required: false
+    default: "true"
+  comment-tag:
+    description: Distinguishes several Yardstick comments (and default file paths) in one PR.
+    required: false
+    default: gate
+  fail-on-gate:
+    description: Fail the step when the gate fails ('true' or 'false'). Bad input or a broken target always fails.
+    required: false
+    default: "true"
+  install-only:
+    description: Only install yardstick and put it on PATH for later steps ('true' or 'false').
+    required: false
+    default: "false"
+  github-token:
+    description: Token used only to post the PR comment. The workflow needs `pull-requests - write`.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  passed:
+    description: "'true' if the gate passed, else 'false'."
+    value: ${{ steps.gate.outputs.passed }}
+  exit-code:
+    description: yardstick gate's exit code (0 pass, 1 gate failed, 2 bad input).
+    value: ${{ steps.gate.outputs.exit-code }}
+  report:
+    description: Path of the markdown report.
+    value: ${{ steps.gate.outputs.report }}
+  run:
+    description: Path of the run JSON.
+    value: ${{ steps.gate.outputs.run }}
+
+runs:
+  using: composite
+  steps:
+    # No third-party actions: uv comes from PyPI at a pinned version, and yardstick is synced from this action's own
+    # checkout (the ref the caller named) against its committed uv.lock.
+    - name: Install yardstick
+      shell: bash
+      env:
+        UV_VERSION: "0.11.32"
+      run: |
+        set -euo pipefail
+        venv="$RUNNER_TEMP/yardstick-uv"
+        if [ ! -x "$venv/bin/uv" ]; then
+          python3 -m venv "$venv"
+          "$venv/bin/pip" install --quiet --disable-pip-version-check "uv==$UV_VERSION"
+        fi
+        "$venv/bin/uv" sync --quiet --locked --no-dev --python 3.12 --project "$GITHUB_ACTION_PATH"
+        "$GITHUB_ACTION_PATH/.venv/bin/yardstick" --help > /dev/null
+        echo "$GITHUB_ACTION_PATH/.venv/bin" >> "$GITHUB_PATH"
+        echo "yardstick installed from $GITHUB_ACTION_PATH"
+
+    - name: Run and gate
+      id: gate
+      if: inputs.install-only != 'true'
+      shell: bash
+      env:
+        YS_SUITE: ${{ inputs.suite }}
+        YS_GATE_CONFIG: ${{ inputs.gate-config }}
+        YS_RESULTS: ${{ inputs.results }}
+        YS_MAPPING: ${{ inputs.mapping }}
+        YS_COMMAND: ${{ inputs.command }}
+        YS_TARGET_NAME: ${{ inputs.target-name }}
+        YS_RUN_ARGS: ${{ inputs.run-args }}
+        YS_BASELINE: ${{ inputs.baseline }}
+        YS_CALIBRATION: ${{ inputs.calibration }}
+        YS_REPORT_PATH: ${{ inputs.report-path }}
+        YS_HTML_PATH: ${{ inputs.html-report-path }}
+        YS_RUN_PATH: ${{ inputs.run-path }}
+        YS_TAG: ${{ inputs.comment-tag }}
+      run: |
+        set -euo pipefail
+        fail() { echo "::error title=Yardstick::$1"; echo "exit-code=2" >> "$GITHUB_OUTPUT"; exit 2; }
+        [ -n "$YS_SUITE" ] || fail "input 'suite' is required"
+        [ -n "$YS_GATE_CONFIG" ] || fail "input 'gate-config' is required"
+        work="$RUNNER_TEMP/yardstick-$YS_TAG"
+        mkdir -p "$work"
+        run_path="${YS_RUN_PATH:-$work/run.json}"
+        report_path="${YS_REPORT_PATH:-$work/report.md}"
+        mkdir -p "$(dirname "$run_path")" "$(dirname "$report_path")"
+        echo "run=$run_path" >> "$GITHUB_OUTPUT"
+        echo "report=$report_path" >> "$GITHUB_OUTPUT"
+
+        args=(run --suite "$YS_SUITE" --target-name "$YS_TARGET_NAME" --out "$run_path")
+        if [ -n "$YS_RESULTS" ] && [ -n "$YS_COMMAND" ]; then fail "give either 'results' or 'command', not both"; fi
+        if [ -n "$YS_RESULTS" ]; then
+          args+=(--results "$YS_RESULTS")
+          [ -z "$YS_MAPPING" ] || args+=(--mapping "$YS_MAPPING")
+        elif [ -n "$YS_COMMAND" ]; then
+          args+=(--cmd "$YS_COMMAND")
+        else
+          fail "a target is required: 'results' (with 'mapping') or 'command'"
+        fi
+        if [ -n "$YS_RUN_ARGS" ]; then
+          read -r -a extra <<< "$YS_RUN_ARGS"
+          args+=("${extra[@]}")
+        fi
+        yardstick "${args[@]}" || fail "yardstick run failed (exit $?)"
+
+        gate_args=(gate "$run_path" --config "$YS_GATE_CONFIG" --report "$report_path")
+        [ -z "$YS_BASELINE" ] || gate_args+=(--baseline "$YS_BASELINE")
+        [ -z "$YS_HTML_PATH" ] || gate_args+=(--html-report "$YS_HTML_PATH")
+        while IFS= read -r cal; do
+          [ -z "$cal" ] || gate_args+=(--calibration "$cal")
+        done <<< "$YS_CALIBRATION"
+        set +e
+        yardstick "${gate_args[@]}"
+        code=$?
+        set -e
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        if [ "$code" -eq 0 ]; then echo "passed=true" >> "$GITHUB_OUTPUT"; else echo "passed=false" >> "$GITHUB_OUTPUT"; fi
+        if [ -f "$report_path" ]; then
+          { cat "$report_path"; echo; } >> "$GITHUB_STEP_SUMMARY"
+        fi
+        if [ "$code" -ge 2 ]; then fail "yardstick gate could not evaluate (exit $code)"; fi
+
+    - name: Comment on the pull request
+      if: inputs.install-only != 'true' && inputs.comment == 'true' && steps.gate.outputs.report != ''
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        YS_REPORT: ${{ steps.gate.outputs.report }}
+        YS_TAG: ${{ inputs.comment-tag }}
+      run: |
+        set -euo pipefail
+        if [ -f "$YS_REPORT" ]; then
+          "$GITHUB_ACTION_PATH/.venv/bin/python" -m yardstick.github_comment --report "$YS_REPORT" --tag "$YS_TAG"
+        fi
+
+    - name: Verdict
+      if: inputs.install-only != 'true'
+      shell: bash
+      env:
+        YS_CODE: ${{ steps.gate.outputs.exit-code }}
+        YS_FAIL_ON_GATE: ${{ inputs.fail-on-gate }}
+      run: |
+        set -euo pipefail
+        if [ "$YS_CODE" = "0" ]; then echo "Yardstick gate passed"; exit 0; fi
+        if [ "$YS_FAIL_ON_GATE" = "true" ]; then echo "::error title=Yardstick::gate failed"; exit 1; fi
+        echo "::warning title=Yardstick::gate failed (fail-on-gate is false)"
