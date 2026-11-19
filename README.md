@@ -2,7 +2,7 @@
 
 An eval harness that sits on top of AI projects' own evals: one run format, baselines, side-by-side compare, and CI gates that fail on regressions.
 
-Build-log #26. Status: **Phase 4** (GitHub composite action, a Yardstick gate on a Footnote branch, this case study) on branch `phase-4`; Phases 1-3 (core; results-file adapter, Footnote mapping, HTML report; `llm-judge` with a budget cap, human grades, kappa, YS-05) are on `main`. Spec in `docs/PRD.md`, plans in `docs/PHASE1_PLAN.md` … `docs/PHASE4_PLAN.md`, defaults in `docs/DECISIONS.md`.
+Build-log #26. Status: **Phases 1-5 are on `main`** (core; results-file adapter, Footnote mapping, HTML report; `llm-judge` with a budget cap, human grades, kappa, YS-05; GitHub composite action and the Footnote case study; the `http` target). Spec in `docs/PRD.md`, plans in `docs/PHASE1_PLAN.md` … `docs/PHASE5_PLAN.md`, defaults in `docs/DECISIONS.md`.
 
 ## Quick start
 
@@ -128,6 +128,60 @@ guards against regressions and leaves the targets to Footnote's scorecard.
 **Not done here (owner step):** a live judge. That needs `ANTHROPIC_API_KEY` as a repo secret and a gate step with
 `--judge anthropic:MODEL`, prices and a budget. Until then, the judge's numbers can be reported but cannot gate.
 
+## HTTP target (Phase 5)
+
+`--http CONFIG.yaml` sends one request per suite item, in suite order, and reads the answer from the JSON response.
+The output record is the one the `command` target produces, so scorers, baselines, compare, gates and reports
+work the same. To try it against the fixture endpoint in this repo:
+
+```bash
+# terminal 1: a local endpoint with canned answers (standard library, listens on 127.0.0.1 only)
+python3 fixtures/targets/fake_http_target.py --port 8808
+# terminal 2
+uv run yardstick run -s fixtures/suites/support-bot.yaml --http fixtures/targets/fake-http.yaml \
+  --target-name fake-http -o runs/http.json
+uv run yardstick baseline pin runs/http.json
+uv run yardstick gate runs/http.json -c fixtures/gates/support-bot.yaml
+```
+
+A target config, with every key (only `url` is required; `--http-url URL` overrides it):
+
+```yaml
+url: https://my-service.example/v1/answer   # http or https; no user:password@ part
+method: POST                                # or PUT
+body:                                       # JSON template; default {id: $id, input: $input}
+  question: $input.question                 # a whole string $id / $input / $input.<path> becomes that value
+  request_id: $id
+headers:                                    # header name -> environment variable NAME, never a value
+  Authorization: {env: MY_SERVICE_TOKEN, scheme: Bearer}    # sends "Bearer <value of $MY_SERVICE_TOKEN>"
+  X-Api-Version: {env: MY_SERVICE_API_VERSION, secret: false}
+response:                                   # dotted paths into the response; defaults are the command row's keys
+  text: data.answer
+  refused: {path: data.status, values: [refused]}           # or a path to a boolean
+  latency_ms: usage.ms
+  cost_usd: usage.usd
+  error: error
+  fields: {citations: data.citations}       # structured values for field-equals / label-rate scorers
+timeout_s: 30                               # per request; `--timeout` overrides it
+max_response_bytes: 1048576
+on_error: fail                              # or record
+```
+
+- **Failures.** By default a failed request (connection refused, timeout, a non-2xx status, a body that is not
+  JSON, no value at the `text` path, a response over the size limit) stops the run with exit 2 and writes no run
+  file, like a crashed `command` target. `on_error: record` records the item as errored and carries on instead. An
+  error value the endpoint itself returns marks only that item. No retries; one request at a time.
+- **Secrets.** Header values are read from the named environment variables when the run starts and are not written
+  to the run file, reports or error messages. The recorded target is the method and the URL without its query
+  string. Redirects are not followed and proxy environment variables are not used. If the endpoint echoes a
+  secret header value back, it is replaced by `[redacted:$NAME]` before anything is recorded.
+- **Telemetry.** Latency and cost are recorded only when the endpoint reports them. Yardstick does not time the
+  requests itself, so the same responses give a byte-identical run (YS-01); otherwise they show "not reported".
+
+**Only run against the local fixture.** This target has been exercised against `fake_http_target.py` and test
+servers on 127.0.0.1, in pytest and in CI. It has not been pointed at a real service, so authentication schemes,
+response envelopes and rate limits of real endpoints are untested. Decisions: `docs/DECISIONS.md` D-59 to D-68.
+
 ## GitHub Action
 
 ```yaml
@@ -140,7 +194,7 @@ steps:
     with:
       suite: evals/suite.yaml
       gate-config: .yardstick/gates/main.yaml       # thresholds
-      results: evals/results/latest.json            # or: command: python3 my_target.py
+      results: evals/results/latest.json            # or: command: python3 my_target.py   or: http: my-http.yaml
       mapping: my-mapping.yaml                      # or: footnote
       baseline: .yardstick/baselines/main.json
       report-path: yardstick-report.md
@@ -151,8 +205,10 @@ third-party actions (D-43). It runs `yardstick run` and `yardstick gate`, append
 summary, and posts or updates one PR comment per `comment-tag` with `GITHUB_TOKEN` (D-44). It fails the step when
 the gate fails, unless `fail-on-gate: "false"`, and always fails on bad input (exit 2). Outputs: `passed`,
 `exit-code`, `report`, `run`. Other inputs: `run-args`, `calibration`, `html-report-path`, `target-name`, `comment`,
-`install-only` (only put `yardstick` on `PATH`). The `action` job in `.github/workflows/ci.yml` tests it on every
-push: a healthy run must pass, a degraded run must fail, and a missing target must exit 2.
+`install-only` (only put `yardstick` on `PATH`), `http` and `http-url` (an HTTP target; put the variables its
+config names for headers in the job's `env:`). The `action` job in `.github/workflows/ci.yml` tests it on every
+push: a healthy run must pass, a degraded run must fail, a missing target must exit 2, the fixture HTTP target must
+pass against the command target's baseline, and an HTTP target that is not listening must exit 2.
 
 ## Pieces
 
@@ -160,7 +216,7 @@ push: a healthy run must pass, a degraded run must fail, and a missing target mu
 - **Calibration**: human grade sets, Cohen's kappa per judge (model + prompt hash), per set and pooled; gates honour YS-05.
 - **Metrics**: pass rate, mean score, per-slice, `rate:<scorer key>` (pooled hits/total, e.g. supported sentences), p50/p95 latency (integer ms), total and per-item cost (USD, 6 dp; a run-level total when the target only reports that). Unreported telemetry is "not reported", never 0.
 - **Gates**: `floor`, `max`, `max_drop` / `max_rise` vs baseline, `min_items`, on any metric including `rate:<key>` per slice. Fail closed. A judge rate gates only when its kappa clears `judge.kappa_floor`.
-- **Targets**: `command` (JSONL over stdin/stdout) and `results-file` (declarative mapping, or the built-in `footnote` mapping). `http` is not built yet.
+- **Targets**: `command` (JSONL over stdin/stdout), `results-file` (declarative mapping, or the built-in `footnote` mapping) and `http` (one JSON request per item to a configured URL; run only against the local fixture server so far).
 - **Reports**: markdown (PR comments, CI logs) and static HTML (`report --format html`, `gate --html-report`).
 
 ## Development

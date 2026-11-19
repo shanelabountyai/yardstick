@@ -17,7 +17,7 @@ inputs:
     required: false
     default: ""
   results:
-    description: Results-file target - a project's result JSON (use with mapping). Either this or command.
+    description: Results-file target - a project's result JSON (use with mapping). Either this, command or http.
     required: false
     default: ""
   mapping:
@@ -25,7 +25,17 @@ inputs:
     required: false
     default: ""
   command:
-    description: Command target - a program reading JSONL items and printing JSONL outputs. Either this or results.
+    description: Command target - a program reading JSONL items and printing JSONL outputs. Either this, results or http.
+    required: false
+    default: ""
+  http:
+    description: >-
+      HTTP target - a target config YAML (url, body template, response paths; header values are read from
+      environment variables named in the config, so set those in the job's env). Either this, results or command.
+    required: false
+    default: ""
+  http-url:
+    description: For http - the URL to send requests to, instead of the config file's `url`.
     required: false
     default: ""
   target-name:
@@ -124,6 +134,8 @@ runs:
         YS_RESULTS: ${{ inputs.results }}
         YS_MAPPING: ${{ inputs.mapping }}
         YS_COMMAND: ${{ inputs.command }}
+        YS_HTTP: ${{ inputs.http }}
+        YS_HTTP_URL: ${{ inputs.http-url }}
         YS_TARGET_NAME: ${{ inputs.target-name }}
         YS_RUN_ARGS: ${{ inputs.run-args }}
         YS_BASELINE: ${{ inputs.baseline }}
@@ -146,14 +158,22 @@ runs:
         echo "report=$report_path" >> "$GITHUB_OUTPUT"
 
         args=(run --suite "$YS_SUITE" --target-name "$YS_TARGET_NAME" --out "$run_path")
-        if [ -n "$YS_RESULTS" ] && [ -n "$YS_COMMAND" ]; then fail "give either 'results' or 'command', not both"; fi
+        targets=0
+        for t in "$YS_RESULTS" "$YS_COMMAND" "$YS_HTTP"; do
+          if [ -n "$t" ]; then targets=$((targets + 1)); fi
+        done
+        if [ "$targets" -gt 1 ]; then fail "give one target: 'results', 'command' or 'http', not several"; fi
+        if [ -n "$YS_HTTP_URL" ] && [ -z "$YS_HTTP" ]; then fail "input 'http-url' needs 'http'"; fi
         if [ -n "$YS_RESULTS" ]; then
           args+=(--results "$YS_RESULTS")
           [ -z "$YS_MAPPING" ] || args+=(--mapping "$YS_MAPPING")
         elif [ -n "$YS_COMMAND" ]; then
           args+=(--cmd "$YS_COMMAND")
+        elif [ -n "$YS_HTTP" ]; then
+          args+=(--http "$YS_HTTP")
+          [ -z "$YS_HTTP_URL" ] || args+=(--http-url "$YS_HTTP_URL")
         else
-          fail "a target is required: 'results' (with 'mapping') or 'command'"
+          fail "a target is required: 'results' (with 'mapping'), 'command' or 'http'"
         fi
         if [ -n "$YS_RUN_ARGS" ]; then
           read -r -a extra <<< "$YS_RUN_ARGS"

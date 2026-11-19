@@ -20,6 +20,7 @@ from yardstick import gate as gate_mod
 from yardstick.adapters.base import Adapter, AdapterError
 from yardstick.adapters.command import CommandAdapter
 from yardstick.adapters.footnote import FootnoteAdapter, suite_from_golden, suite_yaml, verdicts_from_answers
+from yardstick.adapters.http import HttpAdapter
 from yardstick.adapters.results_file import ResultsFileAdapter, load_mapping
 from yardstick.clock import Clock, SystemClock, parse_fixed
 from yardstick.compare import compare as compare_runs
@@ -60,6 +61,8 @@ app.add_typer(footnote_app, name="footnote")
 
 EXIT_GATE_FAILED = 1
 EXIT_USAGE = 2
+#: Default for --timeout with a command target (the whole process). An http target's default is in its config.
+COMMAND_TIMEOUT_S = 300.0
 
 AllowSuiteChange = Annotated[
     bool,
@@ -115,14 +118,22 @@ def _make_adapter(
     results: Path | None,
     mapping: str | None,
     theta_prime: float | None,
-    timeout: float,
+    timeout: float | None,
+    http: Path | None = None,
+    http_url: str | None = None,
 ) -> Adapter:
-    if (cmd is None) == (results is None):
-        raise _fail("give exactly one target: --cmd PROGRAM or --results FILE")
+    if sum(t is not None for t in (cmd, results, http)) != 1:
+        raise _fail("give exactly one target: --cmd PROGRAM, --results FILE or --http CONFIG")
+    if results is None and (mapping is not None or theta_prime is not None):
+        raise _fail("--mapping and --theta-prime apply to --results only")
+    if http is None and http_url is not None:
+        raise _fail("--http-url applies to --http only")
     if cmd is not None:
-        if mapping is not None or theta_prime is not None:
-            raise _fail("--mapping and --theta-prime apply to --results only")
-        return CommandAdapter.from_string(target_name, cmd, timeout_s=timeout)
+        return CommandAdapter.from_string(
+            target_name, cmd, timeout_s=COMMAND_TIMEOUT_S if timeout is None else timeout
+        )
+    if http is not None:
+        return HttpAdapter.from_file(target_name, http, url=http_url, timeout_s=timeout)
     assert results is not None
     if mapping is None:
         raise _fail("--results needs --mapping (footnote, or a mapping YAML file)")
@@ -189,6 +200,13 @@ def run(
         float | None,
         typer.Option("--theta-prime", help="Footnote mapping: replay the theta gate at this value."),
     ] = None,
+    http: Annotated[
+        Path | None,
+        typer.Option("--http", help="HTTP target: a config YAML (url, body, env headers, response paths)."),
+    ] = None,
+    http_url: Annotated[
+        str | None, typer.Option("--http-url", help="For --http: the URL, instead of the config file's.")
+    ] = None,
     target_name: Annotated[str, typer.Option("--target-name", help="Name used for baselines.")] = "command",
     model: Annotated[str | None, typer.Option(help="Model identifier to record.")] = None,
     prompt_hash: Annotated[str | None, typer.Option("--prompt-hash", help="Prompt hash to record.")] = None,
@@ -199,7 +217,13 @@ def run(
     fixed_clock: Annotated[
         str | None, typer.Option("--fixed-clock", help="ISO timestamp to record instead of now.")
     ] = None,
-    timeout: Annotated[float, typer.Option(help="Target timeout in seconds.")] = 300.0,
+    timeout: Annotated[
+        float | None,
+        typer.Option(
+            help="Target timeout in seconds. --cmd: the whole process (default 300). "
+            "--http: each request (default: the config's timeout_s, 30)."
+        ),
+    ] = None,
     judge: Annotated[
         str | None,
         typer.Option(
@@ -220,7 +244,7 @@ def run(
         int, typer.Option("--judge-max-tokens", help="Live judge: max output tokens per call.")
     ] = 256,
 ) -> None:
-    """Run a suite against a command or results-file target and write the run JSON."""
+    """Run a suite against a command, results-file or http target and write the run JSON."""
     try:
         s = load_suite(suite)
     except (LoadError, ValidationError) as exc:
@@ -229,7 +253,7 @@ def run(
     sha = None if no_git else (git_sha or _detect_git_sha())
     session = _make_judge(judge, judge_budget_usd, judge_price_in, judge_price_out, judge_max_tokens, s)
     try:
-        adapter = _make_adapter(target_name, cmd, results, mapping, theta_prime, timeout)
+        adapter = _make_adapter(target_name, cmd, results, mapping, theta_prime, timeout, http, http_url)
         r = run_suite(
             s, adapter, clock=clock, model=model, prompt_hash=prompt_hash, git_sha=sha, judge=session
         )

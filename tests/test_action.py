@@ -77,3 +77,45 @@ def test_token_is_only_used_for_the_comment_step() -> None:
     steps = _action()["runs"]["steps"]
     holders = [s["name"] for s in steps if "inputs.github-token" in str(s.get("env", {}))]
     assert holders == ["Comment on the pull request"]
+
+
+def test_http_target_inputs_are_additive() -> None:
+    """Phase 5: `http` and `http-url` are new optional inputs; the Phase 4 inputs are all still there."""
+    action = _action()
+    for name in ("http", "http-url"):
+        assert action["inputs"][name]["required"] is False and action["inputs"][name]["default"] == ""
+    phase4 = {
+        "suite",
+        "gate-config",
+        "results",
+        "mapping",
+        "command",
+        "target-name",
+        "run-args",
+        "baseline",
+        "calibration",
+        "report-path",
+        "html-report-path",
+        "run-path",
+        "comment",
+        "comment-tag",
+        "fail-on-gate",
+        "install-only",
+        "github-token",
+    }
+    assert set(action["inputs"]) == phase4 | {"http", "http-url"}
+    gate = next(s for s in action["runs"]["steps"] if s.get("id") == "gate")
+    assert gate["env"]["YS_HTTP"] == "${{ inputs.http }}"
+    assert gate["env"]["YS_HTTP_URL"] == "${{ inputs.http-url }}"
+    assert '--http "$YS_HTTP"' in gate["run"] and '--http-url "$YS_HTTP_URL"' in gate["run"]
+
+
+def test_ci_exercises_the_http_target_on_loopback_only() -> None:
+    wf = yaml.safe_load((ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
+    steps = wf["jobs"]["action"]["steps"]
+    http_steps = [s for s in steps if "http" in s.get("with", {})]
+    assert len(http_steps) == 2
+    for step in http_steps:
+        assert "env" not in step, "the self-test needs no secret"
+        url = step["with"].get("http-url", "http://127.0.0.1:8808/answer")
+        assert url.startswith("http://127.0.0.1:")
