@@ -8,7 +8,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from tests.helpers import CLOCK, SUITES, TARGET, fake_adapter
+from tests.helpers import CLOCK, SUITES, TARGET, fake_adapter, fake_http_adapter, fake_http_server
 from yardstick.clock import FixedClock
 from yardstick.models import Output
 from yardstick.runner import build_run, run_suite
@@ -24,6 +24,21 @@ def test_command_runs_are_byte_identical(suite_file: str, flags: tuple[str, ...]
         run_suite(load_suite(SUITES / suite_file), fake_adapter(*flags), clock=CLOCK, git_sha="abc")
     )
     assert first == second
+
+
+@pytest.mark.parametrize("suite_file", ["support-bot.yaml", "extraction.yaml"])
+@pytest.mark.parametrize("flags", [(), ("--degrade",), ("--no-telemetry",)])
+def test_http_runs_are_byte_identical(suite_file: str, flags: tuple[str, ...]) -> None:
+    """Phase 5: the http target records only what the endpoint reports (no measured latency), so the same
+    server responses give the same run file, run id included."""
+    suite = load_suite(SUITES / suite_file)
+    with fake_http_server(*flags) as url:
+        first = run_to_json(run_suite(suite, fake_http_adapter(url), clock=CLOCK, git_sha="abc"))
+        second = run_to_json(
+            run_suite(load_suite(SUITES / suite_file), fake_http_adapter(url), clock=CLOCK, git_sha="abc")
+        )
+    assert first == second
+    assert '"kind":"http"' in first
 
 
 def test_run_id_ignores_timestamp_but_not_content() -> None:
