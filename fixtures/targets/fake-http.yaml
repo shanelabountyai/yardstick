@@ -1,0 +1,12 @@
+# http target config for the local fixture server (fixtures/targets/fake_http_target.py, default port 8808).
+# Everything except `url` is the default, written out as an example.
+url: http://127.0.0.1:8808/answer
+method: POST
+body: {id: $id, input: $input}
+response:
+  text: output
+  refused: refused
+  latency_ms: latency_ms
+  cost_usd: cost_usd
+  error: error
+timeout_s: 30
