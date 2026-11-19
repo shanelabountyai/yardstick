@@ -65,6 +65,41 @@ jobs:
           comment: "false"
           fail-on-gate: "false"
           comment-tag: self-test-degraded
+      # Phase 5: the http target, against the fixture server on 127.0.0.1 (no external request, no secret).
+      - name: start the fixture http target
+        run: |
+          nohup python3 fixtures/targets/fake_http_target.py --port 8808 > "$RUNNER_TEMP/fake-http.log" 2>&1 &
+          for _ in $(seq 1 50); do
+            if python3 -c "import socket; socket.create_connection(('127.0.0.1', 8808), 1).close()" 2> /dev/null; then
+              exit 0
+            fi
+            sleep 0.2
+          done
+          cat "$RUNNER_TEMP/fake-http.log"
+          exit 1
+      - name: gate the http target against the command target's baseline (must pass)
+        id: http
+        uses: ./
+        with:
+          suite: fixtures/suites/support-bot.yaml
+          gate-config: fixtures/gates/support-bot.yaml
+          http: fixtures/targets/fake-http.yaml
+          target-name: fake
+          baseline: ${{ runner.temp }}/healthy.json
+          comment: "false"
+          comment-tag: self-test-http
+      - name: an http target that is not listening must fail the step
+        id: http-down
+        continue-on-error: true
+        uses: ./
+        with:
+          suite: fixtures/suites/support-bot.yaml
+          gate-config: fixtures/gates/support-bot.yaml
+          http: fixtures/targets/fake-http.yaml
+          http-url: http://127.0.0.1:1/answer
+          target-name: fake
+          comment: "false"
+          comment-tag: self-test-http-down
       - name: bad input (no target) must fail the step
         id: bad
         continue-on-error: true
@@ -82,6 +117,12 @@ jobs:
           D_PASSED: ${{ steps.degraded.outputs.passed }}
           D_CODE: ${{ steps.degraded.outputs.exit-code }}
           D_REPORT: ${{ steps.degraded.outputs.report }}
+          HTTP_PASSED: ${{ steps.http.outputs.passed }}
+          HTTP_CODE: ${{ steps.http.outputs.exit-code }}
+          HTTP_RUN: ${{ steps.http.outputs.run }}
+          DOWN_OUTCOME: ${{ steps.http-down.outcome }}
+          DOWN_CODE: ${{ steps.http-down.outputs.exit-code }}
+          DOWN_RUN: ${{ steps.http-down.outputs.run }}
           BAD_OUTCOME: ${{ steps.bad.outcome }}
           BAD_CODE: ${{ steps.bad.outputs.exit-code }}
         run: |
@@ -92,3 +133,7 @@ jobs:
           test "$D_PASSED" = false && test "$D_CODE" = 1
           grep -q '^\*\*Gate: FAILED\*\*' "$D_REPORT"
           test "$BAD_OUTCOME" = failure && test "$BAD_CODE" = 2
+          test "$HTTP_PASSED" = true && test "$HTTP_CODE" = 0
+          grep -q '"kind":"http"' "$HTTP_RUN"
+          test "$DOWN_OUTCOME" = failure && test "$DOWN_CODE" = 2
+          test ! -e "$DOWN_RUN"
