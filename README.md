@@ -2,7 +2,7 @@
 
 An eval harness that sits on top of AI projects' own evals: one run format, baselines, side-by-side compare, and CI gates that fail on regressions.
 
-Build-log #26. Status: **Phase 5** (the `http` target) on branch `phase-5`; Phases 1-4 (core; results-file adapter, Footnote mapping, HTML report; `llm-judge` with a budget cap, human grades, kappa, YS-05; GitHub composite action and the Footnote case study) are on `main`. Spec in `docs/PRD.md`, plans in `docs/PHASE1_PLAN.md` … `docs/PHASE5_PLAN.md`, defaults in `docs/DECISIONS.md`.
+Build-log #26. Status: **Phases 1-5 are on `main`** (core; results-file adapter, Footnote mapping, HTML report; `llm-judge` with a budget cap, human grades, kappa, YS-05; GitHub composite action and the Footnote case study; the `http` target). Spec in `docs/PRD.md`, plans in `docs/PHASE1_PLAN.md` … `docs/PHASE5_PLAN.md`, defaults in `docs/DECISIONS.md`.
 
 ## Quick start
 
