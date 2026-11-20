@@ -25,9 +25,10 @@ and no open pull request, so it did the whole run.
   it): <https://claude.ai/artifact/HZQpiKR4KZrZEQPZzHuq9r>
 - **Demo script:** [`docs/DEMO.md`](DEMO.md)
 - **LinkedIn drafts (two, not posted, not in the Ledger):** [`docs/LINKEDIN_DRAFTS.md`](LINKEDIN_DRAFTS.md)
-- **Five-lens review:** [`docs/reviews/FIVE-LENS-2026-11-19.md`](reviews/FIVE-LENS-2026-11-19.md)
+- **Five-lens review** (report only; verdict "ship after the top items"; 71 findings: 1 Blocker, 24 Major,
+  46 Minor; 22 work items, 6 of them Do now): [`docs/reviews/FIVE-LENS-2026-11-19.md`](reviews/FIVE-LENS-2026-11-19.md)
 - **Status and owner steps:** [`NEXT.md`](../NEXT.md)
-- **Decisions for this run:** `docs/DECISIONS.md`, D-69 onward
+- **Decisions for this run:** `docs/DECISIONS.md`, D-69 to D-78
 
 ### Verification in place of a live check (2026-11-20)
 
