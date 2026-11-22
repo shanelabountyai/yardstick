@@ -1,4 +1,5 @@
-"""HTML report: one static file, no scripts or external URLs, escaped, deterministic, charts inline."""
+"""HTML report: one static file, no scripts or external URLs, escaped, deterministic, charts inline (as HTML
+and CSS rows since D-90; they were inline SVG before)."""
 
 from __future__ import annotations
 
@@ -30,9 +31,18 @@ def test_html_is_static_and_has_charts() -> None:
     cfg = GateConfig(rules=[GateRule(metric="pass_rate", floor=0.9, max_drop=0.02)])
     html = render_html(cur, baseline=base, gate=gate_mod.evaluate(cfg, cur, base))
     _assert_static(html)
-    assert html.count("<svg") == 2  # slices + rates
+    # D-90 (decision 8 (b)): the charts are HTML/CSS rows, not SVG. Two charts (slices + rates), each row a
+    # label, a track with a bar and a baseline marker, and a value with a text alternative for the baseline.
+    assert "<svg" not in html
+    assert html.count('<figure class="chart"') == 2
+    rows = re.findall(r'<li><span class="label[^"]*">.*?</li>', html)
+    assert len(rows) == 2  # one slice ("s") and one rate ("exact")
+    for row in rows:
+        assert '<span class="track" aria-hidden="true">' in row
+        assert re.search(r'<span class="bar" style="width: [\d.]+%"></span>', row)
+        assert re.search(r'<span class="base" style="left: [\d.]+%"></span>', row)
+        assert '<span class="sr">, baseline 100.0%</span>' in row
     assert "Gate failed" in html
-    assert 'class="base"' in html  # baseline marker drawn
     assert "not reported" in html  # no telemetry in this run (YS-04)
     assert html == render_html(cur, baseline=base, gate=gate_mod.evaluate(cfg, cur, base))
 
@@ -68,4 +78,4 @@ def test_cli_report_html_and_gate_html(tmp_path: Path) -> None:
 def test_committed_footnote_html_example_is_static() -> None:
     html = (ROOT / "examples" / "footnote" / "report.html").read_text(encoding="utf-8")
     _assert_static(html)
-    assert "footnote-golden" in html and "<svg" in html
+    assert "footnote-golden" in html and '<figure class="chart"' in html and "<svg" not in html

@@ -36,31 +36,13 @@ Slices:
 - `U`: unanswerable (golden slice U): the expected outcome is a refusal.
 - `V`: edition questions (golden slice V): the answer must label the edition it cites.
 
-## Run
+## Gate
 
-| Field | Value |
-|---|---|
-| Run | `sha256:1cde8bbdfa25947b` |
-| Suite | `footnote-golden` (`sha256:76beaa0f0f1d`) |
-| Target | `footnote-dense-sonnet-theta-off` (results-file) |
-| Model | claude-sonnet-5-5 |
-| Prompt hash | not reported |
-| Git SHA | not reported |
-| Started | 2026-11-14T00:00:00Z |
-| Items | 41 (0 target errors) |
-| Baseline | `sha256:fb3406ee2e01bde2` (`footnote-hybrid-sonnet-theta-on`) |
-
-## Rates
-
-Per scorer: hits / total over the items it applied to. Report-only scorers never decide an item's pass.
-
-| Scorer | Items | Rate | Baseline | Change |
-|---|---|---|---|---|
-| `out-of-scope` | 1 | 0.0% (0/1) | 0.0% | ±0.0 pt |
-| `pre-call (report-only)` | 41 | 0.0% (0/41) | 43.9% | −43.9 pt |
-| `refusal` | 40 | 92.5% (37/40) | 70.0% | +22.5 pt |
-| `refusal-code (report-only)` | 7 | 0.0% (0/7) | 71.4% | −71.4 pt |
-| `support (report-only)` | 0 | not reported | 96.1% | n/a |
+| Rule | Result | Current | Baseline | Items | Checks |
+|---|---|---|---|---|---|
+| `rate:refusal[A+M]` | **FAIL** | 86.4% | 63.6% | 22 / min 8 | 86.4% (floor 90.0%) (FAIL)<br>rose 22.7 pt (max drop 2.0 pt) (ok) |
+| `pass_rate[U]` | **FAIL** | 87.5% | 87.5% | 8 / min 8 | 87.5% (floor 90.0%) (FAIL) |
+| `rate:support[A+M+V]` | report-only: fail | not reported | 96.1% | 0 / min 8 | 0 items (min 8) (FAIL)<br>not reported (FAIL)<br>report-only (YS-05): judge behind 'support' not reported by the target, kappa unknown |
 
 ## Slices
 
@@ -73,6 +55,18 @@ Per scorer: hits / total over the items it applied to. Report-only scorers never
 | P | 5 | 100.0% | 100.0% | ±0.0 pt |
 | U | 8 | 87.5% | 87.5% | ±0.0 pt |
 | V | 6 | 100.0% | 100.0% | +66.7 pt |
+
+## Rates
+
+Per scorer: hits / total over the items it applied to. Report-only scorers never decide an item's pass.
+
+| Scorer | Items | Rate | Baseline | Change |
+|---|---|---|---|---|
+| `out-of-scope` | 1 | 0.0% (0/1) | 0.0% | ±0.0 pt |
+| `pre-call (report-only)` | 41 | 0.0% (0/41) | 43.9% | −43.9 pt |
+| `refusal` | 40 | 92.5% (37/40) | 70.0% | +22.5 pt |
+| `refusal-code (report-only)` | 7 | 0.0% (0/7) | 71.4% | −71.4 pt |
+| `support (report-only)` | 0 | not reported | 96.1% | n/a |
 
 <details><summary>Rates by slice (21 rows)</summary>
 
@@ -102,13 +96,19 @@ Per scorer: hits / total over the items it applied to. Report-only scorers never
 
 </details>
 
-## Gate
+## Run
 
-| Rule | Current | Baseline | Items | Checks | Result |
-|---|---|---|---|---|---|
-| `rate:refusal[A+M]` | 86.4% | 63.6% | 22 / min 8 | 86.4% (floor 90.0%) (FAIL)<br>rose 22.7 pt (max drop 2.0 pt) (ok) | **FAIL** |
-| `pass_rate[U]` | 87.5% | 87.5% | 8 / min 8 | 87.5% (floor 90.0%) (FAIL) | **FAIL** |
-| `rate:support[A+M+V]` | not reported | 96.1% | 0 / min 8 | 0 items (min 8) (FAIL)<br>not reported (FAIL)<br>report-only (YS-05): judge behind 'support' not reported by the target, kappa unknown | report-only: fail |
+| Field | Value |
+|---|---|
+| Run | `sha256:1cde8bbdfa25947b` |
+| Suite | `footnote-golden` (`sha256:76beaa0f0f1d`) |
+| Target | `footnote-dense-sonnet-theta-off` (results-file) |
+| Model | claude-sonnet-5-5 |
+| Prompt hash | not reported |
+| Git SHA | not reported |
+| Started | 2026-11-14T00:00:00Z |
+| Items | 41 (0 target errors) |
+| Baseline | `sha256:fb3406ee2e01bde2` (`footnote-hybrid-sonnet-theta-on`) |
 
 ## Item changes vs baseline
 

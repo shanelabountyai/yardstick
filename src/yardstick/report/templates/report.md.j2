@@ -38,19 +38,25 @@ Slices:
 {% endif %}
 {% endif %}
 
-## Run
+{% if gate %}
+## Gate
 
-| Field | Value |
-|---|---|
-| Run | {{ run.run_id | code }} |
-| Suite | {{ run.suite_name | code }} ({{ run.suite_hash[:19] | code }}) |
-| Target | {{ run.target.name | code }} ({{ run.target.kind | text }}) |
-| Model | {{ (run.model or "not reported") | text }} |
-| Prompt hash | {{ (run.prompt_hash or "not reported") | text }} |
-| Git SHA | {{ (run.git_sha or "not reported") | text }} |
-| Started | {{ run.started_at | text }} |
-| Items | {{ m.n_items }} ({{ m.n_errors }} target error{{ "" if m.n_errors == 1 else "s" }}{% if m.n_not_scored %}, {{ m.n_not_scored }} not scored{% endif %}) |
-{% if baseline %}| Baseline | {{ baseline.run_id | code }} ({{ baseline.target.name | code }}) |
+| Rule | Result | Current | Baseline | Items | Checks |
+|---|---|---|---|---|---|
+{% for row in gate_rows -%}
+| {{ row.label }} | {% if row.report_only %}{{ "report-only: pass" if row.passed else "report-only: fail" }}{% else %}{{ "pass" if row.passed else "**FAIL**" }}{% endif %} | {{ row.current }} | {{ row.base }} | {{ row.n }} / min {{ row.min }} | {{ row.checks | join("<br>") }} |
+{% endfor %}
+{% endif %}
+
+{% if slice_rows %}
+## Slices
+
+| Slice | Items | Pass rate | Mean score{% if comparison %} | Pass rate change{% endif %} |
+|---|---|---|---|{% if comparison %}---|{% endif %}
+
+{% for row in slice_rows -%}
+| {{ row.name }} | {{ row.n }} | {{ row.pass_rate }} | {{ row.mean }}{% if comparison %} | {{ row.delta }}{% endif %} |
+{% endfor %}
 {% endif %}
 
 {% if rate_rows %}
@@ -63,29 +69,6 @@ Per scorer: hits / total over the items it applied to. Report-only scorers never
 
 {% for row in rate_rows -%}
 | {{ row.label }} | {{ row.n }} | {{ row.value }}{% if comparison %} | {{ row.base }} | {{ row.delta }}{% endif %} |
-{% endfor %}
-{% endif %}
-
-{% if run.judges %}
-## Judges
-
-LLM-judge scores are report-only per item; a gate rule on a judge rate gates only if the judge's kappa clears the floor (YS-05).
-
-| Scorer | Judge | Prompt hash | Units judged | No valid label | Not judged (budget) | Calls | Spend / cap (run) |
-|---|---|---|---|---|---|---|---|
-{% for key, j in run.judges.items() -%}
-| {{ key | code }} | {{ j.model | text }} ({{ j.source | text }}) | {{ j.prompt_hash | code }} | {{ j.units_judged }} | {{ j.units_invalid }} | {{ j.units_skipped_budget }} | {{ j.calls }} | ${{ "%.6f" | format(j.spent_usd) }} / ${{ "%.6f" | format(j.cap_usd) }}{{ " **over estimate**" if j.overrun }} |
-{% endfor %}
-{% endif %}
-
-{% if slice_rows %}
-## Slices
-
-| Slice | Items | Pass rate | Mean score{% if comparison %} | Pass rate change{% endif %} |
-|---|---|---|---|{% if comparison %}---|{% endif %}
-
-{% for row in slice_rows -%}
-| {{ row.name }} | {{ row.n }} | {{ row.pass_rate }} | {{ row.mean }}{% if comparison %} | {{ row.delta }}{% endif %} |
 {% endfor %}
 {% endif %}
 
@@ -102,14 +85,31 @@ LLM-judge scores are report-only per item; a gate rule on a judge rate gates onl
 </details>
 {% endif %}
 
-{% if gate %}
-## Gate
+{% if run.judges %}
+## Judges
 
-| Rule | Current | Baseline | Items | Checks | Result |
-|---|---|---|---|---|---|
-{% for row in gate_rows -%}
-| {{ row.label }} | {{ row.current }} | {{ row.base }} | {{ row.n }} / min {{ row.min }} | {{ row.checks | join("<br>") }} | {% if row.report_only %}{{ "report-only: pass" if row.passed else "report-only: fail" }}{% else %}{{ "pass" if row.passed else "**FAIL**" }}{% endif %} |
+LLM-judge scores are report-only per item; a gate rule on a judge rate gates only if the judge's kappa clears the floor (YS-05).
+
+| Scorer | Judge | Prompt hash | Units judged | No valid label | Not judged (budget) | Calls | Spend / cap (run) |
+|---|---|---|---|---|---|---|---|
+{% for key, j in run.judges.items() -%}
+| {{ key | code }} | {{ j.model | text }} ({{ j.source | text }}) | {{ j.prompt_hash | code }} | {{ j.units_judged }} | {{ j.units_invalid }} | {{ j.units_skipped_budget }} | {{ j.calls }} | ${{ "%.6f" | format(j.spent_usd) }} / ${{ "%.6f" | format(j.cap_usd) }}{{ " **over estimate**" if j.overrun }} |
 {% endfor %}
+{% endif %}
+
+## Run
+
+| Field | Value |
+|---|---|
+| Run | {{ run.run_id | code }} |
+| Suite | {{ run.suite_name | code }} ({{ run.suite_hash[:19] | code }}) |
+| Target | {{ run.target.name | code }} ({{ run.target.kind | text }}) |
+| Model | {{ (run.model or "not reported") | text }} |
+| Prompt hash | {{ (run.prompt_hash or "not reported") | text }} |
+| Git SHA | {{ (run.git_sha or "not reported") | text }} |
+| Started | {{ run.started_at | text }} |
+| Items | {{ m.n_items }} ({{ m.n_errors }} target error{{ "" if m.n_errors == 1 else "s" }}{% if m.n_not_scored %}, {{ m.n_not_scored }} not scored{% endif %}) |
+{% if baseline %}| Baseline | {{ baseline.run_id | code }} ({{ baseline.target.name | code }}) |
 {% endif %}
 
 {% if comparison and (comparison.newly_failing or comparison.newly_passing) %}

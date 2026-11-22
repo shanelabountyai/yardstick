@@ -63,7 +63,7 @@ uv run yardstick footnote reproduce --results-dir fixtures/footnote/results --go
 Result: [`examples/footnote/reproduction.md`](examples/footnote/reproduction.md): 74 scorecard numbers match, 0 differ,
 49 are listed as not reproducible with the reason (they come from database rows or other result files). The gate
 report against Footnote's own targets: [`report.md`](examples/footnote/report.md) and
-[`report.html`](examples/footnote/report.html) (one static file, inline SVG, no scripts).
+[`report.html`](examples/footnote/report.html) (one static file, HTML and CSS bar charts, no scripts).
 
 ## Judges and calibration (Phase 3)
 

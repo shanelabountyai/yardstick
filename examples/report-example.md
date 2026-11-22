@@ -16,19 +16,21 @@
 | Cost total | $0.006239 | $0.006239 | ±$0.000000 |
 | Cost per item | $0.000520 | $0.000520 | ±$0.000000 |
 
-## Run
+## Gate
 
-| Field | Value |
-|---|---|
-| Run | `sha256:45f2d7e506b4ea80` |
-| Suite | `support-bot` (`sha256:1f333f1cc5e3`) |
-| Target | `fake` (command) |
-| Model | fake-model-v1 |
-| Prompt hash | sha256:example |
-| Git SHA | not reported |
-| Started | 2026-11-14T00:00:00Z |
-| Items | 12 (0 target errors) |
-| Baseline | `sha256:8452a0673b73cfd5` (`fake`) |
+| Rule | Result | Current | Baseline | Items | Checks |
+|---|---|---|---|---|---|
+| `pass_rate` | **FAIL** | 58.3% | 100.0% | 12 / min 10 | 58.3% (floor 85.0%) (FAIL)<br>dropped 41.7 pt (max 2.0 pt) (FAIL) |
+| `pass_rate[refusal]` | **FAIL** | 50.0% | 100.0% | 4 / min 4 | 50.0% (floor 100.0%) (FAIL) |
+| `latency_p95_ms` | pass | 1428 ms | 714 ms | 12 / min 10 | 1428 ms (max 2000 ms) (ok) |
+
+## Slices
+
+| Slice | Items | Pass rate | Mean score | Pass rate change |
+|---|---|---|---|---|
+| account | 4 | 75.0% | 95.8% | −25.0 pt |
+| faq | 4 | 50.0% | 79.2% | −50.0 pt |
+| refusal | 4 | 50.0% | 50.0% | −50.0 pt |
 
 ## Rates
 
@@ -39,14 +41,6 @@ Per scorer: hits / total over the items it applied to. Report-only scorers never
 | `citation-grounded` | 3 | 66.7% (2/3) | 100.0% | −33.3 pt |
 | `contains-all` | 8 | 75.0% (6/8) | 100.0% | −25.0 pt |
 | `refusal-expected` | 12 | 83.3% (10/12) | 100.0% | −16.7 pt |
-
-## Slices
-
-| Slice | Items | Pass rate | Mean score | Pass rate change |
-|---|---|---|---|---|
-| account | 4 | 75.0% | 95.8% | −25.0 pt |
-| faq | 4 | 50.0% | 79.2% | −50.0 pt |
-| refusal | 4 | 50.0% | 50.0% | −50.0 pt |
 
 <details><summary>Rates by slice (7 rows)</summary>
 
@@ -62,13 +56,19 @@ Per scorer: hits / total over the items it applied to. Report-only scorers never
 
 </details>
 
-## Gate
+## Run
 
-| Rule | Current | Baseline | Items | Checks | Result |
-|---|---|---|---|---|---|
-| `pass_rate` | 58.3% | 100.0% | 12 / min 10 | 58.3% (floor 85.0%) (FAIL)<br>dropped 41.7 pt (max 2.0 pt) (FAIL) | **FAIL** |
-| `pass_rate[refusal]` | 50.0% | 100.0% | 4 / min 4 | 50.0% (floor 100.0%) (FAIL) | **FAIL** |
-| `latency_p95_ms` | 1428 ms | 714 ms | 12 / min 10 | 1428 ms (max 2000 ms) (ok) | pass |
+| Field | Value |
+|---|---|
+| Run | `sha256:45f2d7e506b4ea80` |
+| Suite | `support-bot` (`sha256:1f333f1cc5e3`) |
+| Target | `fake` (command) |
+| Model | fake-model-v1 |
+| Prompt hash | sha256:example |
+| Git SHA | not reported |
+| Started | 2026-11-14T00:00:00Z |
+| Items | 12 (0 target errors) |
+| Baseline | `sha256:8452a0673b73cfd5` (`fake`) |
 
 ## Item changes vs baseline
 
