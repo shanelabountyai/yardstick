@@ -81,6 +81,7 @@ def score_item(suite: Suite, item: Item, output: Output, judge: JudgeSession | N
         scores=scores,
         passed=passed,
         score=round(mean, 6),
+        not_scored=not gating,
     )
 
 

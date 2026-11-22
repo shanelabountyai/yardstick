@@ -293,13 +293,20 @@ class Score(_Additive):
         return (1 if self.passed else 0), 1
 
 
-class ItemResult(_Strict):
+class ItemResult(_Additive):
+    """``not_scored``: no gating (non-report-only) scorer produced a score for this item, so it is left out
+    of ``pass_rate`` and ``mean_score`` and shown as "not scored" (decision 9 (b), D-88). Serialised only
+    when true, so other runs and their ids do not change (D-24)."""
+
+    _omit_if_empty: ClassVar[tuple[str, ...]] = ("not_scored",)
+
     item_id: str
     slices: list[str]
     output: Output
     scores: list[Score]
     passed: bool
     score: float
+    not_scored: bool = False
 
 
 class TargetInfo(_Strict):
@@ -390,6 +397,8 @@ class SliceMetrics(_Strict):
     pass_rate: float | None
     mean_score: float | None
     rates: dict[str, RateMetric] = Field(default_factory=dict)
+    #: Items behind pass_rate / mean_score (the scored ones, D-88).
+    n_scored: int = 0
 
 
 class MetricSet(_Strict):
@@ -407,6 +416,8 @@ class MetricSet(_Strict):
     rates: dict[str, RateMetric] = Field(default_factory=dict)
     #: Where the cost metrics came from: every item ("items"), the run-level total ("run"), or nowhere (None).
     cost_source: Literal["items", "run"] | None = None
+    #: Items with no gating score, left out of pass_rate / mean_score (D-88).
+    n_not_scored: int = 0
 
     def rate(self, key: str, slice_name: str | None = None) -> RateMetric | None:
         if slice_name is None:
@@ -432,14 +443,18 @@ class MetricSet(_Strict):
         return out
 
     def count(self, slice_name: str | None = None, metric: str | None = None) -> int:
-        """Items behind a metric: for ``rate:<key>``, only the items where that scorer applied."""
+        """Items behind a metric: for ``rate:<key>``, only the items where that scorer applied; for
+        ``pass_rate``/``mean_score``, only the scored items (D-88)."""
         if metric is not None and is_rate_metric(metric):
             rm = self.rate(rate_key(metric), slice_name)
             return 0 if rm is None else rm.n_items
+        scored = metric in SLICE_METRICS
         if slice_name is None:
-            return self.n_items
+            return self.n_items - self.n_not_scored if scored else self.n_items
         sm = self.slices.get(slice_name)
-        return 0 if sm is None else sm.n_items
+        if sm is None:
+            return 0
+        return sm.n_scored if scored else sm.n_items
 
 
 # --------------------------------------------------------------------------- gates

@@ -48,7 +48,8 @@ def compare(a: Run, b: Run, *, allow_suite_change: bool = False) -> Comparison:
 
     ra = {r.item_id: r for r in a.items}
     rb = {r.item_id: r for r in b.items}
-    shared = [i for i in ra if i in rb]
+    # A not-scored item (no gating score, D-88) neither passes nor fails, so it never flips.
+    shared = [i for i in ra if i in rb and not ra[i].not_scored and not rb[i].not_scored]
     return Comparison(
         run_a=a.run_id,
         run_b=b.run_id,

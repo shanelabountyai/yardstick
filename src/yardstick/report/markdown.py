@@ -96,6 +96,7 @@ class ReportData:
     failing_rows: list[_Row]
     failing_total: int
     failing_more: bool
+    not_scored: list[str]
     version: str
 
 
@@ -230,13 +231,12 @@ def build(
                 )
             )
 
-    failing = [r for r in run.items if not r.passed]
+    failing = [r for r in run.items if not r.passed and not r.not_scored]
+    not_scored = [r.item_id for r in run.items if r.not_scored]
     failing_rows = []
     for r in failing[:MAX_FAILING_ROWS]:
         gating = [s for s in r.scores if not s.report_only]
         bad = [f"{s.key}: {s.detail}" if s.detail else s.key for s in gating if not s.passed]
-        if not gating:
-            bad = ["no scorer applied"]
         failing_rows.append(
             _Row(
                 {
@@ -262,6 +262,7 @@ def build(
         failing_rows=failing_rows,
         failing_total=len(failing),
         failing_more=len(failing) > MAX_FAILING_ROWS,
+        not_scored=[code(i) for i in not_scored[:MAX_FAILING_ROWS]],
         version=__version__,
     )
 

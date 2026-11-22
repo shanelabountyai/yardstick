@@ -311,7 +311,9 @@ def run(
         raise _fail(str(exc)) from exc
     save_run(r, out)
     passed = sum(1 for i in r.items if i.passed)
-    typer.echo(f"{r.run_id}  {s.name}  {passed}/{len(r.items)} passed  -> {out}")
+    unscored = sum(1 for i in r.items if i.not_scored)
+    note = f" ({unscored} not scored)" if unscored else ""
+    typer.echo(f"{r.run_id}  {s.name}  {passed}/{len(r.items)} passed{note}  -> {out}")
     for key, rec in r.judges.items():
         typer.echo(
             f"judge {key}: {rec.model} ({rec.source}), {rec.calls} calls, {rec.units_judged} units judged, "
