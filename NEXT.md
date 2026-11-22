@@ -55,7 +55,7 @@ D-79 to D-91 in `docs/DECISIONS.md` (and D-30's wording updated for decision 8).
 - You: in Footnote, re-pin the two baselines (D-46) when its workflow moves to a Yardstick ref with this
   change: the `footnote-golden` and `footnote-golden-judged` suite hashes moved (D-79), so the gate will exit 2
   with "suite hash differs" until then.
-- You: check the `LICENSE` holder ("Shane LaBounty", D-85) and edit it if it should be Lab Intelligence, LLC.
+- Done 2026-11-22: `LICENSE` holder is Lab Intelligence, LLC (Shane, D-92).
 - You: decide on the proposed README status line and jargon wording in the pull request body (README lines 3
   and 5 were not changed).
 - You: open `examples/footnote/report.html` in your browser in light and dark mode, and on a phone.
