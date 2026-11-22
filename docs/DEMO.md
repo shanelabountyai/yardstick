@@ -88,8 +88,8 @@ from an outage."
 
 ```text
 wrote runs/report.md
-FAIL    pass_rate                    floor: 0.583333 >= 0.85; max_drop: drop 0.416667 <= 0.02
-FAIL    pass_rate[refusal]           floor: 0.5 >= 1
+FAIL    pass_rate                    58.3% (floor 85.0%); dropped 41.7 pt (max 2.0 pt)
+FAIL    pass_rate[refusal]           50.0% (floor 100.0%)
 PASS    latency_p95_ms               ok
 gate FAILED
 exit 1
@@ -131,7 +131,7 @@ uv run yardstick report runs/degraded.json --baseline runs/healthy.json --gate f
 Then open `runs/report.html` (on a Mac: `open runs/report.html`), and the Footnote one in the second tab
 (`open examples/footnote/report.html`).
 
-**Say:** "The same report as one static HTML file: inline SVG bars, no scripts, no external requests, so it can
+**Say:** "The same report as one static HTML file: HTML and CSS bar charts, no scripts, no external requests, so it can
 be attached to a build or emailed. The bar is this run, the vertical line is the baseline."
 
 **See:** a page titled "Yardstick report: support-bot" with a red "Gate failed" badge, a summary table, two bar
@@ -168,8 +168,8 @@ and cannot change the verdict. The gate still fails, on the two deterministic ru
 **See:**
 
 ```text
-FAIL    rate:refusal[A+M]            floor: 0.636364 >= 0.9
-FAIL    pass_rate[U]                 floor: 0.875 >= 0.9
+FAIL    rate:refusal[A+M]            63.6% (floor 90.0%)
+FAIL    pass_rate[U]                 87.5% (floor 90.0%)
 (pass)  rate:judge[A+M+V]            ok; report-only (YS-05): judge kappa 0.17 (n 40) < floor 0.6
 gate FAILED
 exit 1
