@@ -8,3 +8,5 @@ __pycache__/
 dist/
 build/
 /runs/
+# Baselines pinned while following the README in this repo (target repos commit theirs, D-04).
+/.yardstick/

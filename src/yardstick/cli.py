@@ -103,13 +103,22 @@ def _write_or_echo(text: str, out: Path | None) -> None:
         typer.echo(f"wrote {out}", err=True)
 
 
-def _resolve_baseline(run: Run, explicit: Path | None, directory: Path) -> Run | None:
+def _resolve_baseline(
+    run: Run, explicit: Path | None, directory: Path, run_path: Path, cfg: GateConfig | None = None
+) -> Run | None:
+    """The explicit baseline, else the pinned one. When none is found and the gate has a drop/rise rule,
+    say where it looked and how to pin one (decision 4 (a): the verdict stays a failed check, exit 1)."""
     if explicit is not None:
         return _load_run(explicit)
     try:
-        return baseline_mod.find(run, directory)
+        found = baseline_mod.find(run, directory)
     except (LoadError, ValidationError) as exc:
         raise _fail(f"baseline in {directory}: {exc}") from exc
+    needs = cfg is not None and any(r.max_drop is not None or r.max_rise is not None for r in cfg.rules)
+    if found is None and needs:
+        path = baseline_mod.baseline_path(run.suite_name, run.target.name, directory)
+        typer.echo(f"note: no baseline at {path}; pin one with: yardstick baseline pin {run_path}", err=True)
+    return found
 
 
 def _make_adapter(
@@ -337,7 +346,7 @@ def gate(
     except (LoadError, ValidationError) as exc:
         raise _fail(f"{config}: {exc}") from exc
     cals = _calibrations(cfg, config, calibration)
-    base = _resolve_baseline(r, baseline, baselines_dir)
+    base = _resolve_baseline(r, baseline, baselines_dir, run_path, cfg)
     try:
         result = gate_mod.evaluate(cfg, r, base, allow_suite_change=allow_suite_change, calibrations=cals)
     except SuiteChangedError as exc:
@@ -371,6 +380,12 @@ def report(
         Path | None, typer.Option("--baseline", "-b", help="Baseline run to compare.")
     ] = None,
     gate_config: Annotated[Path | None, typer.Option("--gate", "-g", help="Gate config to evaluate.")] = None,
+    baselines_dir: Annotated[
+        Path,
+        typer.Option(
+            "--baselines-dir", help="With --gate and no --baseline: where the pinned baseline is looked up."
+        ),
+    ] = baseline_mod.DEFAULT_DIR,
     allow_suite_change: AllowSuiteChange = False,
     out: Annotated[Path | None, typer.Option("--out", "-o", help="Write here instead of stdout.")] = None,
     fmt: Annotated[
@@ -378,13 +393,18 @@ def report(
     ] = "md",
     calibration: Calibrations = None,
 ) -> None:
-    """Render a markdown or HTML report for a run (optionally vs a baseline and with a gate)."""
+    """Render a markdown or HTML report for a run (optionally vs a baseline and with a gate).
+
+    With --gate, the baseline is found the way `yardstick gate` finds it (--baseline, else the pinned one).
+    """
     r = _load_run(run_path)
     base = _load_run(baseline) if baseline else None
     try:
         result = None
         if gate_config is not None:
             cfg = load_gate(gate_config)
+            if base is None:
+                base = _resolve_baseline(r, None, baselines_dir, run_path, cfg)
             cals = _calibrations(cfg, gate_config, calibration)
             result = gate_mod.evaluate(cfg, r, base, allow_suite_change=allow_suite_change, calibrations=cals)
         render = render_html if fmt == "html" else markdown.render
@@ -442,8 +462,13 @@ def baseline_pin(
 ) -> None:
     """Pin a run as the baseline for its suite + target."""
     r = _load_run(run_path)
-    path = baseline_mod.pin(r, baselines_dir)
-    typer.echo(f"pinned {r.run_id} -> {path}")
+    path, old = baseline_mod.pin(r, baselines_dir)
+    if old is None:
+        typer.echo(f"pinned {r.run_id} -> {path}")
+    elif old == r.run_id:
+        typer.echo(f"pinned {r.run_id} -> {path} (unchanged)")
+    else:
+        typer.echo(f"pinned {r.run_id} -> {path} (replaced {old})")
 
 
 @footnote_app.command("suite")
