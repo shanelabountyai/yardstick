@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -112,6 +113,39 @@ def check_text(metric: str, check: CheckResult) -> str:
     return f"{down} {text} ({check.check.replace('_', ' ')} {limit})"
 
 
+# --------------------------------------------------------------------------- markdown escaping (PRD-G, D-87)
+
+_CONTROL = re.compile(r"[\x00-\x1f\x7f\x85\u2028\u2029]")
+_MD_PUNCT = re.compile(r"([\\`*_\[\]|~])")
+_WORD_JOINER = "\u2060"
+
+
+def md_text(text: str) -> str:
+    """Free text (target output, names, notes) for a markdown report or PR comment: one line, no markup.
+
+    Control characters become spaces; ``&``, ``<``, ``>`` become entities (so no HTML and no ``<!--``
+    marker); markdown punctuation is backslash-escaped; ``@`` and bare ``http://``/``www.`` get a word joiner,
+    so nothing mentions anyone or turns into a link.
+    """
+    t = _CONTROL.sub(" ", text)
+    t = t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    t = _MD_PUNCT.sub(r"\\\1", t)
+    t = t.replace("@", "@" + _WORD_JOINER).replace("://", ":" + _WORD_JOINER + "//")
+    return re.sub(r"(?i)\bwww\.", lambda m: m.group(0)[:3] + _WORD_JOINER + ".", t)
+
+
+def md_code(text: str, *, table: bool = True) -> str:
+    """An identifier as a markdown code span, whatever backticks it contains. Inside a code span nothing is
+    markup (no mention, link or HTML); only a pipe needs escaping in a table cell."""
+    t = _CONTROL.sub(" ", text)
+    if table:
+        t = t.replace("|", "\\|")
+    longest = max((len(m) for m in re.findall(r"`+", t)), default=0)
+    fence = "`" * (longest + 1)
+    pad = " " if t.startswith("`") or t.endswith("`") or not t.strip() else ""
+    return f"{fence}{pad}{t}{pad}{fence}"
+
+
 def md_cell(text: str) -> str:
-    """Escape a value for a markdown table cell."""
-    return text.replace("|", "\\|").replace("\n", " ")
+    """Escape free text for a markdown table cell (kept as the name the report builder uses)."""
+    return md_text(text)

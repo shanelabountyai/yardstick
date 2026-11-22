@@ -44,6 +44,8 @@ SLICE_METRICS: frozenset[str] = frozenset({"pass_rate", "mean_score"})
 #: Prefix of rate metrics: ``rate:<scorer key>`` = hits / total over the items where that scorer applied.
 RATE_PREFIX = "rate:"
 _RATE_METRIC = re.compile(r"^rate:[A-Za-z0-9_.+-]+$")
+#: What a scorer key may contain: exactly what a ``rate:<key>`` gate rule can name (PRD-G).
+_SCORER_KEY = re.compile(r"[A-Za-z0-9_.+-]+")
 _FIXED_METRICS: frozenset[str] = frozenset(
     {"pass_rate", "mean_score", "latency_p50_ms", "latency_p95_ms", "cost_total_usd", "cost_per_item_usd"}
 )
@@ -159,6 +161,12 @@ class Suite(_Strict):
             if spec.name not in available:
                 raise ValueError(f"unknown scorer {spec.name!r}; available: {', '.join(available)}")
         keys = [s.expected_key for s in self.scorers]
+        for key in keys:
+            if not _SCORER_KEY.fullmatch(key):
+                raise ValueError(
+                    f"scorer key {key!r} must use only letters, digits and . _ + - (so a gate rule "
+                    "rate:<key> can name it)"
+                )
         if len(keys) != len(set(keys)):
             raise ValueError("scorer keys must be unique; set `key` when a scorer is used twice")
         for spec in self.scorers:

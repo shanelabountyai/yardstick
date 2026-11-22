@@ -1,21 +1,21 @@
-# Yardstick report — {{ run.suite_name }}
+# Yardstick report — {{ run.suite_name | text }}
 
 {{ "**Gate: PASSED**" if gate and gate.passed else ("**Gate: FAILED**" if gate else "") }}
 
 | | |
 |---|---|
-| Run | `{{ run.run_id }}` |
-| Suite | `{{ run.suite_name }}` (`{{ run.suite_hash[:19] }}`) |
-| Target | `{{ run.target.name }}` ({{ run.target.kind }}) |
-| Model | {{ run.model or "not reported" }} |
-| Prompt hash | {{ run.prompt_hash or "not reported" }} |
-| Git SHA | {{ run.git_sha or "not reported" }} |
-| Started | {{ run.started_at }} |
+| Run | {{ run.run_id | code }} |
+| Suite | {{ run.suite_name | code }} ({{ run.suite_hash[:19] | code }}) |
+| Target | {{ run.target.name | code }} ({{ run.target.kind | text }}) |
+| Model | {{ (run.model or "not reported") | text }} |
+| Prompt hash | {{ (run.prompt_hash or "not reported") | text }} |
+| Git SHA | {{ (run.git_sha or "not reported") | text }} |
+| Started | {{ run.started_at | text }} |
 | Items | {{ m.n_items }} ({{ m.n_errors }} target error{{ "" if m.n_errors == 1 else "s" }}) |
-{% if baseline %}| Baseline | `{{ baseline.run_id }}` |
+{% if baseline %}| Baseline | {{ baseline.run_id | code }} |
 {% endif %}
 {% for w in warnings %}
-> **Warning:** {{ w }}
+> **Warning:** {{ w | text }}
 {% endfor %}
 
 ## Summary
@@ -36,7 +36,7 @@ Per scorer: hits / total over the items it applied to. Report-only scorers never
 |---|---|---|{% if comparison %}---|---|{% endif %}
 
 {% for row in rate_rows -%}
-| `{{ row.label }}` | {{ row.n }} | {{ row.value }}{% if comparison %} | {{ row.base }} | {{ row.delta }}{% endif %} |
+| {{ row.label }} | {{ row.n }} | {{ row.value }}{% if comparison %} | {{ row.base }} | {{ row.delta }}{% endif %} |
 {% endfor %}
 {% endif %}
 
@@ -48,7 +48,7 @@ LLM-judge scores are report-only per item; a gate rule on a judge rate gates onl
 | Scorer | Judge | Prompt hash | Units judged | No valid label | Not judged (budget) | Calls | Spend / cap (run) |
 |---|---|---|---|---|---|---|---|
 {% for key, j in run.judges.items() -%}
-| `{{ key }}` | {{ j.model }} ({{ j.source }}) | `{{ j.prompt_hash }}` | {{ j.units_judged }} | {{ j.units_invalid }} | {{ j.units_skipped_budget }} | {{ j.calls }} | ${{ "%.6f" | format(j.spent_usd) }} / ${{ "%.6f" | format(j.cap_usd) }}{{ " **over estimate**" if j.overrun }} |
+| {{ key | code }} | {{ j.model | text }} ({{ j.source | text }}) | {{ j.prompt_hash | code }} | {{ j.units_judged }} | {{ j.units_invalid }} | {{ j.units_skipped_budget }} | {{ j.calls }} | ${{ "%.6f" | format(j.spent_usd) }} / ${{ "%.6f" | format(j.cap_usd) }}{{ " **over estimate**" if j.overrun }} |
 {% endfor %}
 {% endif %}
 
@@ -70,7 +70,7 @@ LLM-judge scores are report-only per item; a gate rule on a judge rate gates onl
 |---|---|---|---|{% if comparison %}---|{% endif %}
 
 {% for row in slice_rate_rows -%}
-| {{ row.slice }} | `{{ row.label }}` | {{ row.n }} | {{ row.value }}{% if comparison %} | {{ row.delta }}{% endif %} |
+| {{ row.slice }} | {{ row.label }} | {{ row.n }} | {{ row.value }}{% if comparison %} | {{ row.delta }}{% endif %} |
 {% endfor %}
 {% endif %}
 
@@ -80,16 +80,16 @@ LLM-judge scores are report-only per item; a gate rule on a judge rate gates onl
 | Rule | Current | Baseline | Items | Checks | Result |
 |---|---|---|---|---|---|
 {% for row in gate_rows -%}
-| `{{ row.label }}` | {{ row.current }} | {{ row.base }} | {{ row.n }} / min {{ row.min }} | {{ row.checks | join("<br>") }} | {% if row.report_only %}{{ "report-only: pass" if row.passed else "report-only: fail" }}{% else %}{{ "pass" if row.passed else "**FAIL**" }}{% endif %} |
+| {{ row.label }} | {{ row.current }} | {{ row.base }} | {{ row.n }} / min {{ row.min }} | {{ row.checks | join("<br>") }} | {% if row.report_only %}{{ "report-only: pass" if row.passed else "report-only: fail" }}{% else %}{{ "pass" if row.passed else "**FAIL**" }}{% endif %} |
 {% endfor %}
 {% endif %}
 
 {% if comparison and (comparison.newly_failing or comparison.newly_passing) %}
 ## Item changes vs baseline
 
-{% if comparison.newly_failing %}- Newly failing ({{ comparison.newly_failing | length }}): {% for i in comparison.newly_failing %}`{{ i }}`{{ ", " if not loop.last }}{% endfor %}{{ "\n" }}
+{% if comparison.newly_failing %}- Newly failing ({{ comparison.newly_failing | length }}): {% for i in comparison.newly_failing %}{{ i | code(table=False) }}{{ ", " if not loop.last }}{% endfor %}{{ "\n" }}
 {%- endif %}
-{% if comparison.newly_passing %}- Newly passing ({{ comparison.newly_passing | length }}): {% for i in comparison.newly_passing %}`{{ i }}`{{ ", " if not loop.last }}{% endfor %}{{ "\n" }}
+{% if comparison.newly_passing %}- Newly passing ({{ comparison.newly_passing | length }}): {% for i in comparison.newly_passing %}{{ i | code(table=False) }}{{ ", " if not loop.last }}{% endfor %}{{ "\n" }}
 {%- endif %}
 {% endif %}
 
@@ -99,7 +99,7 @@ LLM-judge scores are report-only per item; a gate rule on a judge rate gates onl
 | Item | Slices | Failed checks |
 |---|---|---|
 {% for row in failing_rows -%}
-| `{{ row.id }}` | {{ row.slices }} | {{ row.detail }} |
+| {{ row.id }} | {{ row.slices }} | {{ row.detail }} |
 {% endfor %}
 {% endif %}
 

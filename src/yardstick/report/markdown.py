@@ -15,7 +15,7 @@ from yardstick import metrics as metrics_mod
 from yardstick.compare import RUN_METRICS
 from yardstick.compare import compare as compare_runs
 from yardstick.models import Comparison, GateResult, MetricDelta, MetricSet, RateMetric, Run
-from yardstick.report.format import NOT_REPORTED, check_text, fmt_delta, fmt_metric, md_cell
+from yardstick.report.format import NOT_REPORTED, check_text, fmt_delta, fmt_metric, md_cell, md_code, md_text
 
 LABELS = {
     "pass_rate": "Pass rate",
@@ -41,13 +41,16 @@ class _Row:
 
 
 def _env() -> Environment:
-    return Environment(
-        autoescape=False,  # markdown, not HTML; cells are escaped with md_cell
+    env = Environment(
+        autoescape=False,  # markdown, not HTML: every free value goes through the `text` or `code` filter
         undefined=StrictUndefined,
         keep_trailing_newline=True,
         trim_blocks=True,
         lstrip_blocks=True,
     )
+    env.filters["text"] = md_text
+    env.filters["code"] = md_code
+    return env
 
 
 def _template_source() -> str:
@@ -103,8 +106,10 @@ def build(
     gate: GateResult | None = None,
     allow_suite_change: bool = False,
     cell: Callable[[str], str] = md_cell,
+    code: Callable[[str], str] = md_code,
 ) -> ReportData:
-    """Compute and format the report's content. ``cell`` escapes free text for the output format."""
+    """Compute and format the report's content. ``cell`` escapes free text and ``code`` renders an
+    identifier for the output format (markdown: an escaped code span; HTML: as is, autoescaped later)."""
     m = metrics_mod.compute(run)
     ro = report_only_keys(run) | (report_only_keys(baseline) if baseline is not None else set())
     comparison: Comparison | None = None
@@ -148,7 +153,7 @@ def build(
         rate_rows.append(
             _Row(
                 {
-                    "label": cell(rate_label(key, ro)),
+                    "label": code(rate_label(key, ro)),
                     "n": rm.n_items if rm else 0,
                     "value": fmt_rate(rm),
                     "raw": rm.value if rm else None,
@@ -171,7 +176,7 @@ def build(
                 _Row(
                     {
                         "slice": cell(name),
-                        "label": cell(rate_label(key, ro)),
+                        "label": code(rate_label(key, ro)),
                         "n": rm.n_items if rm else 0,
                         "value": fmt_rate(rm),
                         "delta": fmt_delta("rate:", d.delta) if d else "n/a",
@@ -211,7 +216,7 @@ def build(
             gate_rows.append(
                 _Row(
                     {
-                        "label": cell(rr.rule.label),
+                        "label": code(rr.rule.label),
                         "current": fmt_metric(rr.rule.metric, rr.current),
                         "base": fmt_metric(rr.rule.metric, rr.baseline)
                         if gate.baseline_run_id
@@ -235,9 +240,9 @@ def build(
         failing_rows.append(
             _Row(
                 {
-                    "id": cell(r.item_id),
+                    "id": code(r.item_id),
                     "slices": cell(", ".join(r.slices) or "-"),
-                    "detail": cell("; ".join(bad))[:300],
+                    "detail": cell("; ".join(bad)[:300]),
                 }
             )
         )

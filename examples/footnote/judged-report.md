@@ -43,7 +43,7 @@ LLM-judge scores are report-only per item; a gate rule on a judge rate gates onl
 
 | Scorer | Judge | Prompt hash | Units judged | No valid label | Not judged (budget) | Calls | Spend / cap (run) |
 |---|---|---|---|---|---|---|---|
-| `judge` | claude-opus-5-5 (replay verdicts-opus-1646.json (shanelabountyai/footnote @ 3c9b0c7: eval/results/answers-hybrid-claude-sonnet-5-5-theta-on-cd1252c6a407-2026-10-23T1646.json)) | `071689f33855` | 55 | 0 | 0 | 55 | $0.000000 / $0.000000 |
+| `judge` | claude-opus-5-5 (replay verdicts-opus-1646.json (shanelabountyai/footnote @⁠ 3c9b0c7: eval/results/answers-hybrid-claude-sonnet-5-5-theta-on-cd1252c6a407-2026-10-23T1646.json)) | `071689f33855` | 55 | 0 | 0 | 55 | $0.000000 / $0.000000 |
 
 ## Slices
 
@@ -95,7 +95,7 @@ LLM-judge scores are report-only per item; a gate rule on a judge rate gates onl
 |---|---|---|---|---|---|
 | `rate:refusal[A+M]` | 63.6% | no baseline | 22 / min 8 | 63.6% (floor 90.0%) (FAIL) | **FAIL** |
 | `pass_rate[U]` | 87.5% | no baseline | 8 / min 8 | 87.5% (floor 90.0%) (FAIL) | **FAIL** |
-| `rate:judge[A+M+V]` | 96.1% | no baseline | 16 / min 8 | 96.1% (floor 90.0%) (ok)<br>report-only (YS-05): judge kappa 0.17 (n 40) < floor 0.6 | report-only: pass |
+| `rate:judge[A+M+V]` | 96.1% | no baseline | 16 / min 8 | 96.1% (floor 90.0%) (ok)<br>report-only (YS-05): judge kappa 0.17 (n 40) &lt; floor 0.6 | report-only: pass |
 
 ## Failing items
 
@@ -109,7 +109,7 @@ LLM-judge scores are report-only per item; a gate rule on a judge rate gates onl
 | `GM-05` | A+M, A+M+V, M | refusal: expected refusal=False, got refusal=True (via flag) |
 | `GM-06` | A+M, A+M+V, M | refusal: expected refusal=False, got refusal=True (via flag) |
 | `GM-08` | A+M, A+M+V, M | refusal: expected refusal=False, got refusal=True (via flag) |
-| `GU-03` | U | out-of-scope: refusal_code: expected "OUT_OF_SCOPE", got "NO_RELEVANT_PASSAGE" |
+| `GU-03` | U | out-of-scope: refusal\_code: expected "OUT\_OF\_SCOPE", got "NO\_RELEVANT\_PASSAGE" |
 | `GV-02` | A+M+V, V | refusal: expected refusal=False, got refusal=True (via flag) |
 | `GV-03` | A+M+V, V | refusal: expected refusal=False, got refusal=True (via flag) |
 | `GV-05` | A+M+V, V | refusal: expected refusal=False, got refusal=True (via flag) |

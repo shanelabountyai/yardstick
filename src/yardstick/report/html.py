@@ -80,7 +80,12 @@ def render_html(
     allow_suite_change: bool = False,
 ) -> str:
     data = markdown.build(
-        run, baseline=baseline, gate=gate, allow_suite_change=allow_suite_change, cell=_identity
+        run,
+        baseline=baseline,
+        gate=gate,
+        allow_suite_change=allow_suite_change,
+        cell=_identity,
+        code=_identity,
     )
     has_base = data.comparison is not None
     charts = []
