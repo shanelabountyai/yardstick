@@ -59,9 +59,9 @@ Per scorer: hits / total over the items it applied to. Report-only scorers never
 
 | Rule | Current | Baseline | Items | Checks | Result |
 |---|---|---|---|---|---|
-| `pass_rate` | 58.3% | 100.0% | 12 / min 10 | min_items: 12 item(s), need >= 10 (ok); floor: 58.3% >= 85.0% (FAIL); max_drop: drop 41.7 pt <= 2.0 pt (FAIL) | **FAIL** |
-| `pass_rate[refusal]` | 50.0% | 100.0% | 4 / min 4 | min_items: 4 item(s), need >= 4 (ok); floor: 50.0% >= 100.0% (FAIL) | **FAIL** |
-| `latency_p95_ms` | 1428 ms | 714 ms | 12 / min 10 | min_items: 12 item(s), need >= 10 (ok); max: 1428 ms <= 2000 ms (ok) | pass |
+| `pass_rate` | 58.3% | 100.0% | 12 / min 10 | 58.3% (floor 85.0%) (FAIL)<br>dropped 41.7 pt (max 2.0 pt) (FAIL) | **FAIL** |
+| `pass_rate[refusal]` | 50.0% | 100.0% | 4 / min 4 | 50.0% (floor 100.0%) (FAIL) | **FAIL** |
+| `latency_p95_ms` | 1428 ms | 714 ms | 12 / min 10 | 1428 ms (max 2000 ms) (ok) | pass |
 
 ## Item changes vs baseline
 

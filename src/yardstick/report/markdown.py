@@ -15,7 +15,7 @@ from yardstick import metrics as metrics_mod
 from yardstick.compare import RUN_METRICS
 from yardstick.compare import compare as compare_runs
 from yardstick.models import Comparison, GateResult, MetricDelta, MetricSet, RateMetric, Run
-from yardstick.report.format import NOT_REPORTED, fmt_delta, fmt_limit, fmt_metric, md_cell
+from yardstick.report.format import NOT_REPORTED, check_text, fmt_delta, fmt_metric, md_cell
 
 LABELS = {
     "pass_rate": "Pass rate",
@@ -199,10 +199,13 @@ def build(
     gate_rows = []
     if gate:
         for rr in gate.rules:
-            parts = []
-            for c in rr.checks:
-                mark = "ok" if c.passed else "FAIL"
-                parts.append(f"{c.check}: {_humanise(rr.rule.metric, c.check, c.detail)} ({mark})")
+            # One check per line, from the rule's numbers (PRD-B). A passing min_items check is left out:
+            # the Items column shows it.
+            parts = [
+                f"{check_text(rr.rule.metric, c)} ({'ok' if c.passed else 'FAIL'})"
+                for c in rr.checks
+                if not (c.check == "min_items" and c.passed)
+            ]
             if rr.note:
                 parts.append(rr.note)
             gate_rows.append(
@@ -215,7 +218,7 @@ def build(
                         else "no baseline",
                         "n": rr.n_items,
                         "min": rr.min_items,
-                        "checks": cell("; ".join(parts)),
+                        "checks": [cell(p) for p in parts],
                         "passed": rr.passed,
                         "report_only": rr.report_only,
                     }
@@ -270,22 +273,3 @@ def render(
     # Headings always get a blank line around them; collapse runs of blank lines left by conditional blocks.
     text = re.sub(r"\n(#{1,6} [^\n]*)\n", r"\n\n\1\n\n", text)
     return re.sub(r"\n{3,}", "\n\n", text).strip() + "\n"
-
-
-_NUM = re.compile(r"-?\d+(?:\.\d+)?(?:e-?\d+)?")
-
-
-def _humanise(metric: str, check: str, detail: str) -> str:
-    """Re-format raw numbers in a check detail using the metric's units."""
-    if check in {"min_items", "reported"} or "baseline" in detail:
-        return detail
-    is_change = check in {"max_drop", "max_rise"}
-    nums = _NUM.findall(detail)
-    if len(nums) != 2:
-        return detail
-    a, b = (float(x) for x in nums)
-    if is_change:
-        word = "drop" if check == "max_drop" else "rise"
-        return f"{word} {fmt_limit(metric, a, is_change=True)} <= {fmt_limit(metric, b, is_change=True)}"
-    op = ">=" if check == "floor" else "<="
-    return f"{fmt_metric(metric, a)} {op} {fmt_metric(metric, b)}"

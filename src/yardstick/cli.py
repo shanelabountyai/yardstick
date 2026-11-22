@@ -39,7 +39,7 @@ from yardstick.kappa import (
 )
 from yardstick.models import LLM_JUDGE, GateConfig, Run, Suite
 from yardstick.report import markdown
-from yardstick.report.format import fmt_delta, fmt_metric
+from yardstick.report.format import check_text, fmt_delta, fmt_metric
 from yardstick.report.html import render_html
 from yardstick.runner import run_suite
 from yardstick.scorers import ScorerConfigError
@@ -354,7 +354,8 @@ def gate(
         status = "PASS" if rr.passed else "FAIL"
         if rr.report_only:
             status = f"({status.lower()})"
-        detail = "; ".join(f"{c.check}: {c.detail}" for c in rr.checks if not c.passed) or "ok"
+        failing = [check_text(rr.rule.metric, c) for c in rr.checks if not c.passed]
+        detail = "; ".join(failing) or "ok"
         if rr.note:
             detail += f"; {rr.note}"
         typer.echo(f"{status:<6}  {rr.rule.label:<28} {detail}")

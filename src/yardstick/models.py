@@ -498,9 +498,15 @@ class GateConfig(_Additive):
 
 
 class CheckResult(_Strict):
+    """One check of a gate rule. ``value`` and ``limit`` are the numbers the check compared (for
+    ``max_drop``/``max_rise``, ``value`` is the change: positive = dropped / rose), so the text is built from
+    numbers by :func:`yardstick.report.format.check_text`, never parsed back (PRD-B)."""
+
     check: str
     passed: bool
     detail: str
+    value: float | int | None = None
+    limit: float | int | None = None
 
 
 class RuleResult(_Strict):

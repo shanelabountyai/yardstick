@@ -29,6 +29,7 @@ from yardstick.models import (
     is_rate_metric,
     rate_key,
 )
+from yardstick.report.format import check_text
 from yardstick.suite_check import check_same_suite
 
 #: Values are compared after rounding to this many decimals, so 0.92 - 0.90 counts as exactly 0.02.
@@ -37,14 +38,6 @@ PRECISION = 6
 
 def _r(x: float) -> float:
     return round(x, PRECISION)
-
-
-def _fmt(x: float | int | None) -> str:
-    if x is None:
-        return "not reported"
-    if isinstance(x, int):
-        return str(x)
-    return f"{x:.6g}"
 
 
 def evaluate_rule(
@@ -56,32 +49,34 @@ def evaluate_rule(
     base = baseline.value(rule.metric, rule.slice) if baseline is not None else None
     checks: list[CheckResult] = []
 
-    checks.append(
-        CheckResult(check="min_items", passed=n >= min_items, detail=f"{n} item(s), need >= {min_items}")
-    )
+    def add(
+        check: str,
+        passed: bool,
+        value: float | int | None = None,
+        limit: float | int | None = None,
+        detail: str = "",
+    ) -> None:
+        c = CheckResult(check=check, passed=passed, detail=detail, value=value, limit=limit)
+        checks.append(c.model_copy(update={"detail": detail or check_text(rule.metric, c)}))
+
+    add("min_items", n >= min_items, n, min_items)
     if cur is None:
-        checks.append(CheckResult(check="reported", passed=False, detail=f"{rule.label} not reported"))
+        add("reported", False, detail="not reported")
     else:
         if rule.floor is not None:
-            ok = _r(cur) >= _r(rule.floor)
-            checks.append(CheckResult(check="floor", passed=ok, detail=f"{_fmt(cur)} >= {_fmt(rule.floor)}"))
+            add("floor", _r(cur) >= _r(rule.floor), cur, rule.floor)
         if rule.max is not None:
-            ok = _r(cur) <= _r(rule.max)
-            checks.append(CheckResult(check="max", passed=ok, detail=f"{_fmt(cur)} <= {_fmt(rule.max)}"))
+            add("max", _r(cur) <= _r(rule.max), cur, rule.max)
         for name, limit, sign in (("max_drop", rule.max_drop, 1), ("max_rise", rule.max_rise, -1)):
             if limit is None:
                 continue
             if baseline is None:
-                checks.append(CheckResult(check=name, passed=False, detail="no baseline"))
+                add(name, False, limit=limit, detail="no baseline")
             elif base is None:
-                checks.append(CheckResult(check=name, passed=False, detail="baseline value not reported"))
+                add(name, False, limit=limit, detail="baseline value not reported")
             else:
                 change = _r((base - cur) * sign)  # drop: base - cur ; rise: cur - base
-                ok = change <= _r(limit)
-                word = "drop" if sign == 1 else "rise"
-                checks.append(
-                    CheckResult(check=name, passed=ok, detail=f"{word} {_fmt(change)} <= {_fmt(limit)}")
-                )
+                add(name, change <= _r(limit), change, limit)
     return RuleResult(
         rule=rule,
         current=cur,

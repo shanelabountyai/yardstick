@@ -80,17 +80,17 @@ LLM-judge scores are report-only per item; a gate rule on a judge rate gates onl
 | Rule | Current | Baseline | Items | Checks | Result |
 |---|---|---|---|---|---|
 {% for row in gate_rows -%}
-| `{{ row.label }}` | {{ row.current }} | {{ row.base }} | {{ row.n }} / min {{ row.min }} | {{ row.checks }} | {% if row.report_only %}{{ "report-only: pass" if row.passed else "report-only: fail" }}{% else %}{{ "pass" if row.passed else "**FAIL**" }}{% endif %} |
+| `{{ row.label }}` | {{ row.current }} | {{ row.base }} | {{ row.n }} / min {{ row.min }} | {{ row.checks | join("<br>") }} | {% if row.report_only %}{{ "report-only: pass" if row.passed else "report-only: fail" }}{% else %}{{ "pass" if row.passed else "**FAIL**" }}{% endif %} |
 {% endfor %}
 {% endif %}
 
 {% if comparison and (comparison.newly_failing or comparison.newly_passing) %}
 ## Item changes vs baseline
 
-{% if comparison.newly_failing %}- Newly failing ({{ comparison.newly_failing | length }}): {% for i in comparison.newly_failing %}`{{ i }}`{{ ", " if not loop.last }}{% endfor %}
-{% endif %}
-{% if comparison.newly_passing %}- Newly passing ({{ comparison.newly_passing | length }}): {% for i in comparison.newly_passing %}`{{ i }}`{{ ", " if not loop.last }}{% endfor %}
-{% endif %}
+{% if comparison.newly_failing %}- Newly failing ({{ comparison.newly_failing | length }}): {% for i in comparison.newly_failing %}`{{ i }}`{{ ", " if not loop.last }}{% endfor %}{{ "\n" }}
+{%- endif %}
+{% if comparison.newly_passing %}- Newly passing ({{ comparison.newly_passing | length }}): {% for i in comparison.newly_passing %}`{{ i }}`{{ ", " if not loop.last }}{% endfor %}{{ "\n" }}
+{%- endif %}
 {% endif %}
 
 {% if failing_rows %}
