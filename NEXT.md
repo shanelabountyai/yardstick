@@ -1,5 +1,68 @@
 # NEXT: Yardstick
 
+## 2026-11-22: review fixes PRD-A to PRD-I (unattended run, branch `review-fixes/2026-11-21`)
+
+Shane accepted all ten review decisions on 2026-11-21. This run wrote the nine PRDs (`docs/prds/`) and built
+them in the order A, B, C, D, E, G, H, F, I, one concern per commit, on one branch cut from `main` at
+`3bf6912`. One draft pull request, "Yardstick: review fixes PRD-A to I". Nothing merged, nothing deployed, no
+live model call, no API key.
+
+### Built, per PRD
+
+| PRD | What changed | Evidence |
+|---|---|---|
+| A | Rate `n_items` counts only items that contributed (YS-02). `label-rate` can be `judge: true`, so YS-05 applies; `rate:support` in `fixtures/gates/footnote.yaml` is report-only (κ 0.17 < 0.6). `judge.min_graded`, default 30 | `tests/invariants/test_ys02_rates.py`, `test_ys05_label_rate.py`; D-79, D-80 |
+| B | Gate checks read value first: `58.3% (floor 85.0%); dropped 41.7 pt (max 2.0 pt)`, one formatter for terminal and reports. Item-change bullets split; no mid-word breaks | `tests/test_gate_text.py`; D-81 |
+| C | `report --gate` finds the pinned baseline; missing baseline names the path and `baseline pin` (still exit 1); pin says what it replaced; no name collisions | `tests/test_baseline.py`; D-82, D-83 |
+| D | MIT `LICENSE`; README mechanical fixes; exit codes in `--help` | D-84, D-85 |
+| E | Bad input is exit 2 with one line; gate-file thresholds validated; http input hardening | `tests/test_bad_input.py`, `test_http_bad_input.py`; D-86 |
+| G | Markdown escaping of free text and identifiers; scorer keys must be gateable | `tests/test_markdown_escaping.py`; D-87 |
+| H | Items with only report-only scorers are "not scored" and left out of pass rate; no committed number moved | `tests/test_not_scored.py`; D-88 |
+| F | Why-first reports, a Key for scorers and slices, `kappa.md`/`reproduction.md` de-duplicated (19/0/5 and 74/0/49 unchanged) | `tests/test_first_reader.py`; D-89 |
+| I | HTML charts as HTML/CSS rows; named focusable table regions; print and focus styles | `tests/test_html_report.py` (updated); D-90 |
+
+### Gate results (sandbox, 2026-11-22, uv 0.11.32, CPython 3.12.3)
+
+| Step | Exit | Result |
+|---|---|---|
+| `uv sync --locked` | 0 | ok |
+| `uv run ruff check .` | 0 | `All checks passed!` |
+| `uv run ruff format --check .` | 0 | `121 files already formatted` |
+| `uv run mypy` | 0 | `Success: no issues found in 82 source files` |
+| `uv run pytest` | 0 | `403 passed` (332 on `main`; 400 before the PR #8 review fixes, D-91) |
+| `bash examples/make-example.sh && git diff --exit-code examples/` | 0, 0 | no difference after the committed regeneration |
+
+CI on the pull request decides; its conclusions are in the pull request body.
+
+README commands: the 14 commands of the quick start, Footnote and judge blocks were run from a fresh clone of
+the branch; every exit code matched the README (11 exit 0, 3 exit 1 as annotated) and the tree stayed clean.
+
+### D-rows added
+
+D-79 to D-91 in `docs/DECISIONS.md` (and D-30's wording updated for decision 8).
+
+### Not verified
+
+- Anything on Shane's Mac; the HTML report in a desktop browser, Firefox or Safari (headless Chromium only:
+  axe-core 4.10.2, 0 violations at 320 and 1280 px, light and dark).
+- Markdown as GitHub renders it (the `<br>` in gate cells, `<details>` around "Rates by slice", escaped text).
+- Footnote's own workflow against this branch (outside this run's access).
+- The live judge and the `http` target against a real service (unchanged: never run).
+
+### You
+
+- You: review the draft pull request and merge it or ask for changes. Claude does not merge.
+- You: in Footnote, re-pin the two baselines (D-46) when its workflow moves to a Yardstick ref with this
+  change: the `footnote-golden` and `footnote-golden-judged` suite hashes moved (D-79), so the gate will exit 2
+  with "suite hash differs" until then.
+- You: check the `LICENSE` holder ("Shane LaBounty", D-85) and edit it if it should be Lab Intelligence, LLC.
+- You: decide on the proposed README status line and jargon wording in the pull request body (README lines 3
+  and 5 were not changed).
+- You: open `examples/footnote/report.html` in your browser in light and dark mode, and on a phone.
+- You: items 16 to 21 of the review stay "Later"; item 22 stays "Do not do" (D-43 confirmed).
+
+## Earlier: closeout (2026-11-20)
+
 Last updated 2026-11-20 by the unattended closeout run (the one retry of the run scheduled for 2026-11-19; it
 found no earlier branch or pull request and did the whole run). Branch `closeout/2026-11-19`, docs only.
 

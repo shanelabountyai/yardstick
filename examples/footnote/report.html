@@ -5,173 +5,214 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Yardstick report: footnote-golden</title>
 <style>
-:root { --bg: #ffffff; --fg: #1d2129; --muted: #5b6270; --line: #d9dde3; --panel: #f5f7fa;
-  --bar: #3b6fd8; --base: #1d2129; --track: #e9edf2; --pass: #1f7a3f; --fail: #b3261e; --warn-bg: #fff4d6; }
+:root { color-scheme: light dark;
+  --bg: #ffffff; --fg: #1d2129; --muted: #5b6270; --line: #d9dde3; --panel: #f5f7fa;
+  --bar: #3b6fd8; --base: #1d2129; --track: #e9edf2; --track-line: #848c99;
+  --pass: #1f7a3f; --fail: #b3261e; --warn-bg: #fff4d6; }
 @media (prefers-color-scheme: dark) {
   :root { --bg: #14171c; --fg: #e6e8eb; --muted: #9aa2ad; --line: #2c323b; --panel: #1b1f26;
-    --bar: #7aa2ff; --base: #e6e8eb; --track: #262c35; --pass: #5cc483; --fail: #ff8a80; --warn-bg: #3a3218; }
+    --bar: #7aa2ff; --base: #e6e8eb; --track: #262c35; --track-line: #6e7785;
+    --pass: #5cc483; --fail: #ff8a80; --warn-bg: #3a3218; }
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--fg);
   font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-main { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
+main, footer { max-width: 960px; margin: 0 auto; padding: 24px 16px 0; }
+main { padding-bottom: 8px; }
+footer { padding-bottom: 48px; font-size: 0.85rem; color: var(--muted); }
 h1 { font-size: 1.5rem; margin: 0 0 4px; }
 h2 { font-size: 1.15rem; margin: 32px 0 8px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; overflow-wrap: anywhere; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; overflow-wrap: break-word; }
+th.rule code, td.rule code { white-space: nowrap; }
 .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-weight: 600; color: var(--bg); }
 .badge.pass { background: var(--pass); } .badge.fail { background: var(--fail); }
+/* Wide tables scroll inside a named, focusable region (the key column, Result, comes second). */
 .table-wrap { overflow-x: auto; }
+.table-wrap:focus-visible, summary:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
 table { border-collapse: collapse; width: 100%; margin: 8px 0; }
 th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-th { color: var(--muted); font-weight: 600; font-size: 0.85rem; }
+thead th { color: var(--muted); font-weight: 600; font-size: 0.85rem; }
+tbody th { font-weight: 400; }
 td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .fail-text { color: var(--fail); font-weight: 600; } .pass-text { color: var(--pass); }
 .warn { background: var(--warn-bg); padding: 8px 12px; border-radius: 6px; margin: 8px 0; }
-.muted { color: var(--muted); }
-figure { margin: 12px 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
-figcaption { font-weight: 600; margin-bottom: 6px; }
-svg { width: 100%; height: auto; display: block; }
-svg text { fill: var(--fg); font-size: 13px; font-family: inherit; }
-svg .track { fill: var(--track); } svg .bar { fill: var(--bar); }
-svg .base { stroke: var(--base); stroke-width: 2; }
-.legend { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+.muted, .note { color: var(--muted); } .small { font-size: 0.85rem; }
+.why { margin: 8px 0; padding-left: 20px; }
+dl.key { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 8px 0; }
+dl.key dt { font-weight: 600; } dl.key dd { margin: 0; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* Charts are HTML rows (D-90): text stays at the page's size at any width or zoom. */
+figure.chart { margin: 12px 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+figure.chart figcaption { font-weight: 600; margin-bottom: 6px; }
+.chart ul { list-style: none; margin: 0; padding: 0; display: grid;
+  grid-template-columns: minmax(4ch, max-content) minmax(80px, 1fr) max-content; gap: 6px 12px; align-items: center; }
+.chart li { display: contents; }
+.chart .label { overflow-wrap: break-word; max-width: 28ch; }
+.chart .track { position: relative; height: 16px; background: var(--track); border: 1px solid var(--track-line); border-radius: 3px; }
+.chart .track.nr { background: transparent; border-style: dashed; }
+.chart .bar { position: absolute; left: 0; top: 0; bottom: 0; background: var(--bar); border-radius: 2px; }
+.chart .bar.zero { width: 2px !important; }
+.chart .base { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--base);
+  box-shadow: 0 0 0 2px var(--panel); }
+.chart .value { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chart .ro { color: var(--muted); } .chart .ro + .track .bar { opacity: 0.55; }
+.legend { font-size: 0.85rem; color: var(--muted); margin-top: 8px; }
+.legend .swatch { display: inline-block; width: 2px; height: 12px; background: var(--base); vertical-align: middle; margin: 0 4px; }
 details summary { cursor: pointer; color: var(--muted); }
-footer { margin-top: 40px; font-size: 0.85rem; color: var(--muted); }
+details summary h3 { display: inline; font-size: 1rem; font-weight: 600; margin: 0; }
+@media print {
+  .badge { background: none !important; color: var(--fail); border: 1.5px solid currentColor; }
+  .badge.pass { color: var(--pass); }
+  .chart .bar, .chart .base, .chart .track { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  figure, tr { break-inside: avoid; }
+  .table-wrap { overflow: visible; }
+}
 </style>
 </head>
 <body>
 <main>
 <h1>Yardstick report: footnote-golden</h1>
 <p><span class="badge fail">Gate failed</span></p>
-<div class="table-wrap"><table>
-<tr><th>Run</th><td><code>sha256:6bc5e6d36736e96b</code></td></tr>
-<tr><th>Suite</th><td><code>footnote-golden</code> (<code>sha256:c6668bc0518e</code>)</td></tr>
-<tr><th>Target</th><td><code>footnote-dense-sonnet-theta-off</code> (results-file)</td></tr>
-<tr><th>Model</th><td>claude-sonnet-5-5</td></tr>
-<tr><th>Prompt hash</th><td>not reported</td></tr>
-<tr><th>Git SHA</th><td>not reported</td></tr>
-<tr><th>Started</th><td>2026-11-14T00:00:00Z</td></tr>
-<tr><th>Items</th><td>41 (0 target errors)</td></tr>
-<tr><th>Baseline</th><td><code>sha256:082261b0ce16f968</code> (<code>footnote-hybrid-sonnet-theta-on</code>)</td></tr>
+<ul class="why">
+<li><code>rate:refusal[A+M]</code>: 86.4% (floor 90.0%)</li>
+<li><code>pass_rate[U]</code>: 87.5% (floor 90.0%)</li>
+</ul>
+<p class="note">Compared against a different target: <code>footnote-hybrid-sonnet-theta-on</code>. Each change is this target against that one, not a before and after.</p>
+
+<h2 id="h-summary">Summary</h2>
+<div class="table-wrap" role="region" tabindex="0" aria-labelledby="h-summary"><table aria-labelledby="h-summary">
+<thead><tr><th scope="col">Metric</th><th scope="col">Value</th><th scope="col">Baseline</th><th scope="col">Change</th></tr></thead>
+<tbody>
+<tr><th scope="row">Pass rate</th><td class="num">90.2%</td><td class="num">68.3%</td><td class="num">+22.0 pt</td></tr>
+<tr><th scope="row">Latency p50</th><td class="num">not reported</td><td class="num">not reported</td><td class="num">n/a</td></tr>
+<tr><th scope="row">Latency p95</th><td class="num">not reported</td><td class="num">not reported</td><td class="num">n/a</td></tr>
+<tr><th scope="row">Cost total</th><td class="num">$0.451399 (run total reported by target)</td><td class="num">$0.633310</td><td class="num">−$0.181911</td></tr>
+<tr><th scope="row">Cost per item</th><td class="num">$0.011010 (run total reported by target)</td><td class="num">$0.015447</td><td class="num">−$0.004437</td></tr>
+</tbody>
+</table></div>
+<p class="muted small">Mean score equals pass rate in every row here (every scorer is pass or fail), so it is not shown.</p>
+<h2 id="h-key">Key</h2>
+<dl class="key">
+<dt><code>out-of-scope</code></dt><dd>hit = refused with code OUT_OF_SCOPE, on the item that expects it.</dd>
+<dt><code>pre-call</code></dt><dd>report-only. hit = refused before any model call (NO_RELEVANT_PASSAGE, D-28).</dd>
+<dt><code>refusal</code></dt><dd>hit = the expected outcome: answered or partial where the golden set expects an answer, refused where it expects a refusal. On A+M a hit means answered or partial; it is not a refusal rate.</dd>
+<dt><code>refusal-code</code></dt><dd>report-only. hit = refused with the refusal code the golden set expects (U items).</dd>
+<dt><code>support</code></dt><dd>report-only, judge-derived. Share of answer sentences Footnote&#39;s judge labelled supported (schema_invalid left out); it gates only when that judge is calibrated (YS-05).</dd>
+<dt>slice <code>A</code></dt><dd>answerable (golden slice A): the expected outcome is an answer.</dd>
+<dt>slice <code>A+M</code></dt><dd>A and M together: Footnote&#39;s scorecard row &#34;Answered or partial (A, M)&#34;.</dd>
+<dt>slice <code>A+M+V</code></dt><dd>A, M and V together: the slices the sentence-support rate is reported on.</dd>
+<dt>slice <code>M</code></dt><dd>answerable (golden slice M): the expected outcome is an answer.</dd>
+<dt>slice <code>P</code></dt><dd>golden slice P: answer-or-refusal cases asked under different caller roles (callerRole in the input).</dd>
+<dt>slice <code>U</code></dt><dd>unanswerable (golden slice U): the expected outcome is a refusal.</dd>
+<dt>slice <code>V</code></dt><dd>edition questions (golden slice V): the answer must label the edition it cites.</dd>
+</dl>
+
+<h2 id="h-gate">Gate</h2>
+<div class="table-wrap" role="region" tabindex="0" aria-labelledby="h-gate"><table aria-labelledby="h-gate">
+<thead><tr><th scope="col">Rule</th><th scope="col">Result</th><th scope="col">Current</th><th scope="col">Baseline</th><th scope="col">Items</th><th scope="col">Checks</th></tr></thead>
+<tbody>
+<tr><th scope="row" class="rule"><code>rate:refusal[A+M]</code></th><td><span class="fail-text">FAIL</span></td><td class="num">86.4%</td><td class="num">63.6%</td><td class="num">22 / min 8</td><td>86.4% (floor 90.0%) (FAIL)<br>rose 22.7 pt (max drop 2.0 pt) (ok)</td></tr>
+<tr><th scope="row" class="rule"><code>pass_rate[U]</code></th><td><span class="fail-text">FAIL</span></td><td class="num">87.5%</td><td class="num">87.5%</td><td class="num">8 / min 8</td><td>87.5% (floor 90.0%) (FAIL)</td></tr>
+<tr><th scope="row" class="rule"><code>rate:support[A+M+V]</code></th><td><span class="muted">report-only: fail</span></td><td class="num">not reported</td><td class="num">96.1%</td><td class="num">0 / min 8</td><td>0 items (min 8) (FAIL)<br>not reported (FAIL)<br>report-only (YS-05): judge behind &#39;support&#39; not reported by the target, kappa unknown</td></tr>
+</tbody>
 </table></div>
 
-<h2>Summary</h2>
-<div class="table-wrap"><table>
-<tr><th>Metric</th><th>Value</th><th>Baseline</th><th>Change</th></tr>
-<tr><td>Pass rate</td><td class="num">90.2%</td><td class="num">68.3%</td><td class="num">+22.0 pt</td></tr>
-<tr><td>Mean score</td><td class="num">90.2%</td><td class="num">68.3%</td><td class="num">+22.0 pt</td></tr>
-<tr><td>Latency p50</td><td class="num">not reported</td><td class="num">not reported</td><td class="num">n/a</td></tr>
-<tr><td>Latency p95</td><td class="num">not reported</td><td class="num">not reported</td><td class="num">n/a</td></tr>
-<tr><td>Cost total</td><td class="num">$0.451399 (run total reported by target)</td><td class="num">$0.633310</td><td class="num">−$0.181911</td></tr>
-<tr><td>Cost per item</td><td class="num">$0.011010 (run total reported by target)</td><td class="num">$0.015447</td><td class="num">−$0.004437</td></tr>
+
+<h2 id="h-slices">Slices</h2>
+<figure class="chart" aria-labelledby="chart-1">
+<figcaption id="chart-1">Pass rate by slice</figcaption>
+<ul>
+<li><span class="label">A</span><span class="track" aria-hidden="true"><span class="bar" style="width: 85.71%"></span><span class="base" style="left: 71.43%"></span></span><span class="value">85.7%<span class="sr">, baseline 71.4%</span></span></li>
+<li><span class="label">A+M</span><span class="track" aria-hidden="true"><span class="bar" style="width: 86.36%"></span><span class="base" style="left: 63.64%"></span></span><span class="value">86.4%<span class="sr">, baseline 63.6%</span></span></li>
+<li><span class="label">A+M+V</span><span class="track" aria-hidden="true"><span class="bar" style="width: 89.29%"></span><span class="base" style="left: 57.14%"></span></span><span class="value">89.3%<span class="sr">, baseline 57.1%</span></span></li>
+<li><span class="label">M</span><span class="track" aria-hidden="true"><span class="bar" style="width: 87.5%"></span><span class="base" style="left: 50.0%"></span></span><span class="value">87.5%<span class="sr">, baseline 50.0%</span></span></li>
+<li><span class="label">P</span><span class="track" aria-hidden="true"><span class="bar" style="width: 100.0%"></span><span class="base" style="left: 100.0%"></span></span><span class="value">100.0%<span class="sr">, baseline 100.0%</span></span></li>
+<li><span class="label">U</span><span class="track" aria-hidden="true"><span class="bar" style="width: 87.5%"></span><span class="base" style="left: 87.5%"></span></span><span class="value">87.5%<span class="sr">, baseline 87.5%</span></span></li>
+<li><span class="label">V</span><span class="track" aria-hidden="true"><span class="bar" style="width: 100.0%"></span><span class="base" style="left: 33.33%"></span></span><span class="value">100.0%<span class="sr">, baseline 33.3%</span></span></li>
+</ul>
+<div class="legend">Bar: this run. <span class="swatch" aria-hidden="true"></span>Line: baseline. Scale 0–100%. A dashed track is "not reported".</div>
+</figure>
+<div class="table-wrap" role="region" tabindex="0" aria-labelledby="h-slices"><table aria-labelledby="h-slices">
+<thead><tr><th scope="col">Slice</th><th scope="col">Items</th><th scope="col">Pass rate</th><th scope="col">Pass rate change</th></tr></thead>
+<tbody>
+<tr><th scope="row">A</th><td class="num">14</td><td class="num">85.7%</td><td class="num">+14.3 pt</td></tr>
+<tr><th scope="row">A+M</th><td class="num">22</td><td class="num">86.4%</td><td class="num">+22.7 pt</td></tr>
+<tr><th scope="row">A+M+V</th><td class="num">28</td><td class="num">89.3%</td><td class="num">+32.1 pt</td></tr>
+<tr><th scope="row">M</th><td class="num">8</td><td class="num">87.5%</td><td class="num">+37.5 pt</td></tr>
+<tr><th scope="row">P</th><td class="num">5</td><td class="num">100.0%</td><td class="num">±0.0 pt</td></tr>
+<tr><th scope="row">U</th><td class="num">8</td><td class="num">87.5%</td><td class="num">±0.0 pt</td></tr>
+<tr><th scope="row">V</th><td class="num">6</td><td class="num">100.0%</td><td class="num">+66.7 pt</td></tr>
+</tbody>
 </table></div>
 
-<figure>
-<figcaption>Pass rate by slice</figcaption>
-<svg viewBox="0 0 640 190" role="img" aria-label="Pass rate by slice">
-<text x="0" y="20">A</text>
-<rect class="track" x="220" y="7" width="300" height="16" rx="3"></rect>
-<rect class="bar" x="220" y="7" width="257.14" height="16" rx="3"></rect><line class="base" x1="434.29" x2="434.29" y1="4" y2="26"></line><text x="528" y="20">85.7%</text>
-<text x="0" y="46">A+M</text>
-<rect class="track" x="220" y="33" width="300" height="16" rx="3"></rect>
-<rect class="bar" x="220" y="33" width="259.09" height="16" rx="3"></rect><line class="base" x1="410.91" x2="410.91" y1="30" y2="52"></line><text x="528" y="46">86.4%</text>
-<text x="0" y="72">A+M+V</text>
-<rect class="track" x="220" y="59" width="300" height="16" rx="3"></rect>
-<rect class="bar" x="220" y="59" width="267.86" height="16" rx="3"></rect><line class="base" x1="391.43" x2="391.43" y1="56" y2="78"></line><text x="528" y="72">89.3%</text>
-<text x="0" y="98">M</text>
-<rect class="track" x="220" y="85" width="300" height="16" rx="3"></rect>
-<rect class="bar" x="220" y="85" width="262.5" height="16" rx="3"></rect><line class="base" x1="370.0" x2="370.0" y1="82" y2="104"></line><text x="528" y="98">87.5%</text>
-<text x="0" y="124">P</text>
-<rect class="track" x="220" y="111" width="300" height="16" rx="3"></rect>
-<rect class="bar" x="220" y="111" width="300.0" height="16" rx="3"></rect><line class="base" x1="520.0" x2="520.0" y1="108" y2="130"></line><text x="528" y="124">100.0%</text>
-<text x="0" y="150">U</text>
-<rect class="track" x="220" y="137" width="300" height="16" rx="3"></rect>
-<rect class="bar" x="220" y="137" width="262.5" height="16" rx="3"></rect><line class="base" x1="482.5" x2="482.5" y1="134" y2="156"></line><text x="528" y="150">87.5%</text>
-<text x="0" y="176">V</text>
-<rect class="track" x="220" y="163" width="300" height="16" rx="3"></rect>
-<rect class="bar" x="220" y="163" width="300.0" height="16" rx="3"></rect><line class="base" x1="320.0" x2="320.0" y1="160" y2="182"></line><text x="528" y="176">100.0%</text>
-</svg>
-<div class="legend">Bar: this run. Line: baseline. Scale 0–100%.</div>
-</figure>
-<figure>
-<figcaption>Rate by scorer</figcaption>
-<svg viewBox="0 0 640 138" role="img" aria-label="Rate by scorer">
-<text x="0" y="20">out-of-scope</text>
-<rect class="track" x="220" y="7" width="300" height="16" rx="3"></rect>
-<rect class="bar" x="220" y="7" width="0.0" height="16" rx="3"></rect><line class="base" x1="220.0" x2="220.0" y1="4" y2="26"></line><text x="528" y="20">0.0% (0/1)</text>
-<text x="0" y="46">pre-call (report-only)</text>
-<rect class="track" x="220" y="33" width="300" height="16" rx="3"></rect>
-<rect class="bar" x="220" y="33" width="0.0" height="16" rx="3"></rect><line class="base" x1="351.71" x2="351.71" y1="30" y2="52"></line><text x="528" y="46">0.0% (0/41)</text>
-<text x="0" y="72">refusal</text>
-<rect class="track" x="220" y="59" width="300" height="16" rx="3"></rect>
-<rect class="bar" x="220" y="59" width="277.5" height="16" rx="3"></rect><line class="base" x1="430.0" x2="430.0" y1="56" y2="78"></line><text x="528" y="72">92.5% (37/40)</text>
-<text x="0" y="98">refusal-code (report-only)</text>
-<rect class="track" x="220" y="85" width="300" height="16" rx="3"></rect>
-<rect class="bar" x="220" y="85" width="0.0" height="16" rx="3"></rect><line class="base" x1="434.29" x2="434.29" y1="82" y2="104"></line><text x="528" y="98">0.0% (0/7)</text>
-<text x="0" y="124">support (report-only)</text>
-<rect class="track" x="220" y="111" width="300" height="16" rx="3"></rect>
-<line class="base" x1="508.24" x2="508.24" y1="108" y2="130"></line><text x="528" y="124">not reported</text>
-</svg>
-<div class="legend">Bar: this run. Line: baseline. Scale 0–100%.</div>
-</figure>
-
-<h2>Rates</h2>
+<h2 id="h-rates">Rates</h2>
 <p class="muted">Per scorer: hits / total over the items it applied to. Report-only scorers never decide an item's pass.</p>
-<div class="table-wrap"><table>
-<tr><th>Scorer</th><th>Items</th><th>Rate</th><th>Baseline</th><th>Change</th></tr>
-<tr><td><code>out-of-scope</code></td><td class="num">1</td><td class="num">0.0% (0/1)</td><td class="num">0.0%</td><td class="num">±0.0 pt</td></tr>
-<tr><td><code>pre-call (report-only)</code></td><td class="num">41</td><td class="num">0.0% (0/41)</td><td class="num">43.9%</td><td class="num">−43.9 pt</td></tr>
-<tr><td><code>refusal</code></td><td class="num">40</td><td class="num">92.5% (37/40)</td><td class="num">70.0%</td><td class="num">+22.5 pt</td></tr>
-<tr><td><code>refusal-code (report-only)</code></td><td class="num">7</td><td class="num">0.0% (0/7)</td><td class="num">71.4%</td><td class="num">−71.4 pt</td></tr>
-<tr><td><code>support (report-only)</code></td><td class="num">0</td><td class="num">not reported</td><td class="num">96.1%</td><td class="num">n/a</td></tr>
-</table></div>
-
-<h2>Slices</h2>
-<div class="table-wrap"><table>
-<tr><th>Slice</th><th>Items</th><th>Pass rate</th><th>Mean score</th><th>Pass rate change</th></tr>
-<tr><td>A</td><td class="num">14</td><td class="num">85.7%</td><td class="num">85.7%</td><td class="num">+14.3 pt</td></tr>
-<tr><td>A+M</td><td class="num">22</td><td class="num">86.4%</td><td class="num">86.4%</td><td class="num">+22.7 pt</td></tr>
-<tr><td>A+M+V</td><td class="num">28</td><td class="num">89.3%</td><td class="num">89.3%</td><td class="num">+32.1 pt</td></tr>
-<tr><td>M</td><td class="num">8</td><td class="num">87.5%</td><td class="num">87.5%</td><td class="num">+37.5 pt</td></tr>
-<tr><td>P</td><td class="num">5</td><td class="num">100.0%</td><td class="num">100.0%</td><td class="num">±0.0 pt</td></tr>
-<tr><td>U</td><td class="num">8</td><td class="num">87.5%</td><td class="num">87.5%</td><td class="num">±0.0 pt</td></tr>
-<tr><td>V</td><td class="num">6</td><td class="num">100.0%</td><td class="num">100.0%</td><td class="num">+66.7 pt</td></tr>
+<figure class="chart" aria-labelledby="chart-2">
+<figcaption id="chart-2">Rate by scorer</figcaption>
+<ul>
+<li><span class="label">out-of-scope</span><span class="track" aria-hidden="true"><span class="bar zero" style="width: 0.0%"></span><span class="base" style="left: 0.0%"></span></span><span class="value">0.0% (0/1)<span class="sr">, baseline 0.0%</span></span></li>
+<li><span class="label ro">pre-call (report-only)</span><span class="track" aria-hidden="true"><span class="bar zero" style="width: 0.0%"></span><span class="base" style="left: 43.9%"></span></span><span class="value">0.0% (0/41)<span class="sr">, baseline 43.9%</span></span></li>
+<li><span class="label">refusal</span><span class="track" aria-hidden="true"><span class="bar" style="width: 92.5%"></span><span class="base" style="left: 70.0%"></span></span><span class="value">92.5% (37/40)<span class="sr">, baseline 70.0%</span></span></li>
+<li><span class="label ro">refusal-code (report-only)</span><span class="track" aria-hidden="true"><span class="bar zero" style="width: 0.0%"></span><span class="base" style="left: 71.43%"></span></span><span class="value">0.0% (0/7)<span class="sr">, baseline 71.4%</span></span></li>
+<li><span class="label ro">support (report-only)</span><span class="track nr" aria-hidden="true"></span><span class="value">not reported<span class="sr">, baseline 96.1%</span></span></li>
+</ul>
+<div class="legend">Bar: this run. <span class="swatch" aria-hidden="true"></span>Line: baseline. Scale 0–100%. A dashed track is "not reported".</div>
+</figure>
+<div class="table-wrap" role="region" tabindex="0" aria-labelledby="h-rates"><table aria-labelledby="h-rates">
+<thead><tr><th scope="col">Scorer</th><th scope="col">Items</th><th scope="col">Rate</th><th scope="col">Baseline</th><th scope="col">Change</th></tr></thead>
+<tbody>
+<tr><th scope="row"><code>out-of-scope</code></th><td class="num">1</td><td class="num">0.0% (0/1)</td><td class="num">0.0%</td><td class="num">±0.0 pt</td></tr>
+<tr><th scope="row"><code>pre-call (report-only)</code></th><td class="num">41</td><td class="num">0.0% (0/41)</td><td class="num">43.9%</td><td class="num">−43.9 pt</td></tr>
+<tr><th scope="row"><code>refusal</code></th><td class="num">40</td><td class="num">92.5% (37/40)</td><td class="num">70.0%</td><td class="num">+22.5 pt</td></tr>
+<tr><th scope="row"><code>refusal-code (report-only)</code></th><td class="num">7</td><td class="num">0.0% (0/7)</td><td class="num">71.4%</td><td class="num">−71.4 pt</td></tr>
+<tr><th scope="row"><code>support (report-only)</code></th><td class="num">0</td><td class="num">not reported</td><td class="num">96.1%</td><td class="num">n/a</td></tr>
+</tbody>
 </table></div>
 
 <details>
-<summary>Rates by slice (21 rows)</summary>
-<div class="table-wrap"><table>
-<tr><th>Slice</th><th>Scorer</th><th>Items</th><th>Rate</th><th>Change</th></tr>
-<tr><td>A</td><td><code>pre-call (report-only)</code></td><td class="num">14</td><td class="num">0.0% (0/14)</td><td class="num">−21.4 pt</td></tr>
-<tr><td>A</td><td><code>refusal</code></td><td class="num">14</td><td class="num">85.7% (12/14)</td><td class="num">+14.3 pt</td></tr>
-<tr><td>A</td><td><code>support (report-only)</code></td><td class="num">0</td><td class="num">not reported</td><td class="num">n/a</td></tr>
-<tr><td>A+M</td><td><code>pre-call (report-only)</code></td><td class="num">22</td><td class="num">0.0% (0/22)</td><td class="num">−27.3 pt</td></tr>
-<tr><td>A+M</td><td><code>refusal</code></td><td class="num">22</td><td class="num">86.4% (19/22)</td><td class="num">+22.7 pt</td></tr>
-<tr><td>A+M</td><td><code>support (report-only)</code></td><td class="num">0</td><td class="num">not reported</td><td class="num">n/a</td></tr>
-<tr><td>A+M+V</td><td><code>pre-call (report-only)</code></td><td class="num">28</td><td class="num">0.0% (0/28)</td><td class="num">−35.7 pt</td></tr>
-<tr><td>A+M+V</td><td><code>refusal</code></td><td class="num">28</td><td class="num">89.3% (25/28)</td><td class="num">+32.1 pt</td></tr>
-<tr><td>A+M+V</td><td><code>support (report-only)</code></td><td class="num">0</td><td class="num">not reported</td><td class="num">n/a</td></tr>
-<tr><td>M</td><td><code>pre-call (report-only)</code></td><td class="num">8</td><td class="num">0.0% (0/8)</td><td class="num">−37.5 pt</td></tr>
-<tr><td>M</td><td><code>refusal</code></td><td class="num">8</td><td class="num">87.5% (7/8)</td><td class="num">+37.5 pt</td></tr>
-<tr><td>M</td><td><code>support (report-only)</code></td><td class="num">0</td><td class="num">not reported</td><td class="num">n/a</td></tr>
-<tr><td>P</td><td><code>pre-call (report-only)</code></td><td class="num">5</td><td class="num">0.0% (0/5)</td><td class="num">−40.0 pt</td></tr>
-<tr><td>P</td><td><code>refusal</code></td><td class="num">5</td><td class="num">100.0% (5/5)</td><td class="num">±0.0 pt</td></tr>
-<tr><td>U</td><td><code>out-of-scope</code></td><td class="num">1</td><td class="num">0.0% (0/1)</td><td class="num">±0.0 pt</td></tr>
-<tr><td>U</td><td><code>pre-call (report-only)</code></td><td class="num">8</td><td class="num">0.0% (0/8)</td><td class="num">−75.0 pt</td></tr>
-<tr><td>U</td><td><code>refusal</code></td><td class="num">7</td><td class="num">100.0% (7/7)</td><td class="num">±0.0 pt</td></tr>
-<tr><td>U</td><td><code>refusal-code (report-only)</code></td><td class="num">7</td><td class="num">0.0% (0/7)</td><td class="num">−71.4 pt</td></tr>
-<tr><td>V</td><td><code>pre-call (report-only)</code></td><td class="num">6</td><td class="num">0.0% (0/6)</td><td class="num">−66.7 pt</td></tr>
-<tr><td>V</td><td><code>refusal</code></td><td class="num">6</td><td class="num">100.0% (6/6)</td><td class="num">+66.7 pt</td></tr>
-<tr><td>V</td><td><code>support (report-only)</code></td><td class="num">0</td><td class="num">not reported</td><td class="num">n/a</td></tr>
+<summary><h3 id="h-slice-rates">Rates by slice (21 rows)</h3></summary>
+<div class="table-wrap" role="region" tabindex="0" aria-labelledby="h-slice-rates"><table aria-labelledby="h-slice-rates">
+<thead><tr><th scope="col">Slice</th><th scope="col">Scorer</th><th scope="col">Items</th><th scope="col">Rate</th><th scope="col">Change</th></tr></thead>
+<tbody>
+<tr><th scope="row">A</th><td><code>pre-call (report-only)</code></td><td class="num">14</td><td class="num">0.0% (0/14)</td><td class="num">−21.4 pt</td></tr>
+<tr><th scope="row">A</th><td><code>refusal</code></td><td class="num">14</td><td class="num">85.7% (12/14)</td><td class="num">+14.3 pt</td></tr>
+<tr><th scope="row">A</th><td><code>support (report-only)</code></td><td class="num">0</td><td class="num">not reported</td><td class="num">n/a</td></tr>
+<tr><th scope="row">A+M</th><td><code>pre-call (report-only)</code></td><td class="num">22</td><td class="num">0.0% (0/22)</td><td class="num">−27.3 pt</td></tr>
+<tr><th scope="row">A+M</th><td><code>refusal</code></td><td class="num">22</td><td class="num">86.4% (19/22)</td><td class="num">+22.7 pt</td></tr>
+<tr><th scope="row">A+M</th><td><code>support (report-only)</code></td><td class="num">0</td><td class="num">not reported</td><td class="num">n/a</td></tr>
+<tr><th scope="row">A+M+V</th><td><code>pre-call (report-only)</code></td><td class="num">28</td><td class="num">0.0% (0/28)</td><td class="num">−35.7 pt</td></tr>
+<tr><th scope="row">A+M+V</th><td><code>refusal</code></td><td class="num">28</td><td class="num">89.3% (25/28)</td><td class="num">+32.1 pt</td></tr>
+<tr><th scope="row">A+M+V</th><td><code>support (report-only)</code></td><td class="num">0</td><td class="num">not reported</td><td class="num">n/a</td></tr>
+<tr><th scope="row">M</th><td><code>pre-call (report-only)</code></td><td class="num">8</td><td class="num">0.0% (0/8)</td><td class="num">−37.5 pt</td></tr>
+<tr><th scope="row">M</th><td><code>refusal</code></td><td class="num">8</td><td class="num">87.5% (7/8)</td><td class="num">+37.5 pt</td></tr>
+<tr><th scope="row">M</th><td><code>support (report-only)</code></td><td class="num">0</td><td class="num">not reported</td><td class="num">n/a</td></tr>
+<tr><th scope="row">P</th><td><code>pre-call (report-only)</code></td><td class="num">5</td><td class="num">0.0% (0/5)</td><td class="num">−40.0 pt</td></tr>
+<tr><th scope="row">P</th><td><code>refusal</code></td><td class="num">5</td><td class="num">100.0% (5/5)</td><td class="num">±0.0 pt</td></tr>
+<tr><th scope="row">U</th><td><code>out-of-scope</code></td><td class="num">1</td><td class="num">0.0% (0/1)</td><td class="num">±0.0 pt</td></tr>
+<tr><th scope="row">U</th><td><code>pre-call (report-only)</code></td><td class="num">8</td><td class="num">0.0% (0/8)</td><td class="num">−75.0 pt</td></tr>
+<tr><th scope="row">U</th><td><code>refusal</code></td><td class="num">7</td><td class="num">100.0% (7/7)</td><td class="num">±0.0 pt</td></tr>
+<tr><th scope="row">U</th><td><code>refusal-code (report-only)</code></td><td class="num">7</td><td class="num">0.0% (0/7)</td><td class="num">−71.4 pt</td></tr>
+<tr><th scope="row">V</th><td><code>pre-call (report-only)</code></td><td class="num">6</td><td class="num">0.0% (0/6)</td><td class="num">−66.7 pt</td></tr>
+<tr><th scope="row">V</th><td><code>refusal</code></td><td class="num">6</td><td class="num">100.0% (6/6)</td><td class="num">+66.7 pt</td></tr>
+<tr><th scope="row">V</th><td><code>support (report-only)</code></td><td class="num">0</td><td class="num">not reported</td><td class="num">n/a</td></tr>
+</tbody>
 </table></div>
 </details>
 
-<h2>Gate</h2>
-<div class="table-wrap"><table>
-<tr><th>Rule</th><th>Current</th><th>Baseline</th><th>Items</th><th>Checks</th><th>Result</th></tr>
-<tr><td><code>rate:refusal[A+M]</code></td><td class="num">86.4%</td><td class="num">63.6%</td><td class="num">22 / min 8</td><td>min_items: 22 item(s), need &gt;= 8 (ok); floor: 86.4% &gt;= 90.0% (FAIL); max_drop: drop −22.7 pt &lt;= 2.0 pt (ok)</td><td><span class="fail-text">FAIL</span></td></tr>
-<tr><td><code>pass_rate[U]</code></td><td class="num">87.5%</td><td class="num">87.5%</td><td class="num">8 / min 8</td><td>min_items: 8 item(s), need &gt;= 8 (ok); floor: 87.5% &gt;= 90.0% (FAIL)</td><td><span class="fail-text">FAIL</span></td></tr>
-<tr><td><code>rate:support[A+M+V]</code></td><td class="num">not reported</td><td class="num">96.1%</td><td class="num">0 / min 8</td><td>min_items: 0 item(s), need &gt;= 8 (FAIL); reported: rate:support[A+M+V] not reported (FAIL)</td><td><span class="fail-text">FAIL</span></td></tr>
+
+<h2 id="h-run">Run</h2>
+<div class="table-wrap" role="region" tabindex="0" aria-labelledby="h-run"><table aria-labelledby="h-run">
+<tbody>
+<tr><th scope="row">Run</th><td><code>sha256:1cde8bbdfa25947b</code></td></tr>
+<tr><th scope="row">Suite</th><td><code>footnote-golden</code> (<code>sha256:76beaa0f0f1d</code>)</td></tr>
+<tr><th scope="row">Target</th><td><code>footnote-dense-sonnet-theta-off</code> (results-file)</td></tr>
+<tr><th scope="row">Model</th><td>claude-sonnet-5-5</td></tr>
+<tr><th scope="row">Prompt hash</th><td>not reported</td></tr>
+<tr><th scope="row">Git SHA</th><td>not reported</td></tr>
+<tr><th scope="row">Started</th><td>2026-11-14T00:00:00Z</td></tr>
+<tr><th scope="row">Items</th><td>41 (0 target errors)</td></tr>
+<tr><th scope="row">Baseline</th><td><code>sha256:fb3406ee2e01bde2</code> (<code>footnote-hybrid-sonnet-theta-on</code>)</td></tr>
+</tbody>
 </table></div>
 
 <h2>Item changes vs baseline</h2>
@@ -180,16 +221,17 @@ footer { margin-top: 40px; font-size: 0.85rem; color: var(--muted); }
 <li>Newly passing (10): <code>GA-02</code>, <code>GA-06</code>, <code>GA-09</code>, <code>GM-02</code>, <code>GM-05</code>, <code>GM-06</code>, <code>GV-02</code>, <code>GV-03</code>, <code>GV-05</code>, <code>GV-06</code></li>
 </ul>
 
-<h2>Failing items</h2>
-<div class="table-wrap"><table>
-<tr><th>Item</th><th>Slices</th><th>Failed checks</th></tr>
-<tr><td><code>GA-11</code></td><td>A, A+M, A+M+V</td><td>refusal: expected refusal=False, got refusal=True (via flag)</td></tr>
-<tr><td><code>GA-12</code></td><td>A, A+M, A+M+V</td><td>refusal: expected refusal=False, got refusal=True (via flag)</td></tr>
-<tr><td><code>GM-08</code></td><td>A+M, A+M+V, M</td><td>refusal: expected refusal=False, got refusal=True (via flag)</td></tr>
-<tr><td><code>GU-03</code></td><td>U</td><td>out-of-scope: refusal_code: expected &#34;OUT_OF_SCOPE&#34;, got &#34;INSUFFICIENT_SUPPORT&#34;</td></tr>
+<h2 id="h-failing">Failing items</h2>
+<div class="table-wrap" role="region" tabindex="0" aria-labelledby="h-failing"><table aria-labelledby="h-failing">
+<thead><tr><th scope="col">Item</th><th scope="col">Slices</th><th scope="col">Failed checks</th></tr></thead>
+<tbody>
+<tr><th scope="row"><code>GA-11</code></th><td>A, A+M, A+M+V</td><td>refusal: expected refusal=False, got refusal=True (via flag)</td></tr>
+<tr><th scope="row"><code>GA-12</code></th><td>A, A+M, A+M+V</td><td>refusal: expected refusal=False, got refusal=True (via flag)</td></tr>
+<tr><th scope="row"><code>GM-08</code></th><td>A+M, A+M+V, M</td><td>refusal: expected refusal=False, got refusal=True (via flag)</td></tr>
+<tr><th scope="row"><code>GU-03</code></th><td>U</td><td>out-of-scope: refusal_code: expected &#34;OUT_OF_SCOPE&#34;, got &#34;INSUFFICIENT_SUPPORT&#34;</td></tr>
+</tbody>
 </table></div>
-
-<footer>Generated by Yardstick 0.1.0. Cost in USD; latency in integer ms; "not reported" means the target did not report it. Single static file: no scripts, no external resources.</footer>
 </main>
+<footer>Generated by Yardstick 0.1.0. Cost in USD; latency in integer ms; "not reported" means the target did not report it. Single static file: no scripts, no external resources.</footer>
 </body>
 </html>

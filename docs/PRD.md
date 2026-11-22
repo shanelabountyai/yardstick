@@ -32,6 +32,11 @@ Yardstick is that layer. It does not replace a project's own eval scripts; it ad
 | **Gate** | per-metric rule: absolute floor and/or max drop vs baseline (e.g. `supported_rate >= 0.85`, `drop <= 0.02`), plus a minimum-item count so a tiny run can't pass |
 | **Report** | markdown (for PR comments and CI logs) and a single static HTML file (charts inline, no CDN) |
 
+Note (2026-11-22): as built, the registry has 10 scorers: the 8 above plus `field-equals` and `label-rate` (D-23,
+D-26). Gate rules are written `metric: rate:<key>` or a fixed metric, with `floor`, `max`, `max_drop`, `max_rise`,
+`min_items` and an optional `slice` (D-12, D-26), plus a `judge` block for YS-05 (D-40, D-79, D-80). See the README
+"Pieces" section.
+
 ## 4. Scope v1
 
 - CLI: `yardstick run`, `yardstick compare <runA> <runB>`, `yardstick gate`, `yardstick report`,

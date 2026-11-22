@@ -15,7 +15,7 @@ from yardstick import metrics as metrics_mod
 from yardstick.compare import RUN_METRICS
 from yardstick.compare import compare as compare_runs
 from yardstick.models import Comparison, GateResult, MetricDelta, MetricSet, RateMetric, Run
-from yardstick.report.format import NOT_REPORTED, fmt_delta, fmt_limit, fmt_metric, md_cell
+from yardstick.report.format import NOT_REPORTED, check_text, fmt_delta, fmt_metric, md_cell, md_code, md_text
 
 LABELS = {
     "pass_rate": "Pass rate",
@@ -41,13 +41,16 @@ class _Row:
 
 
 def _env() -> Environment:
-    return Environment(
-        autoescape=False,  # markdown, not HTML; cells are escaped with md_cell
+    env = Environment(
+        autoescape=False,  # markdown, not HTML: every free value goes through the `text` or `code` filter
         undefined=StrictUndefined,
         keep_trailing_newline=True,
         trim_blocks=True,
         lstrip_blocks=True,
     )
+    env.filters["text"] = md_text
+    env.filters["code"] = md_code
+    return env
 
 
 def _template_source() -> str:
@@ -93,6 +96,11 @@ class ReportData:
     failing_rows: list[_Row]
     failing_total: int
     failing_more: bool
+    not_scored: list[str]
+    why: list[tuple[str, str]]
+    cross_target: str | None
+    key_scorers: list[tuple[str, str]]
+    key_slices: list[tuple[str, str]]
     version: str
 
 
@@ -103,8 +111,10 @@ def build(
     gate: GateResult | None = None,
     allow_suite_change: bool = False,
     cell: Callable[[str], str] = md_cell,
+    code: Callable[[str], str] = md_code,
 ) -> ReportData:
-    """Compute and format the report's content. ``cell`` escapes free text for the output format."""
+    """Compute and format the report's content. ``cell`` escapes free text and ``code`` renders an
+    identifier for the output format (markdown: an escaped code span; HTML: as is, autoescaped later)."""
     m = metrics_mod.compute(run)
     ro = report_only_keys(run) | (report_only_keys(baseline) if baseline is not None else set())
     comparison: Comparison | None = None
@@ -148,7 +158,7 @@ def build(
         rate_rows.append(
             _Row(
                 {
-                    "label": cell(rate_label(key, ro)),
+                    "label": code(rate_label(key, ro)),
                     "n": rm.n_items if rm else 0,
                     "value": fmt_rate(rm),
                     "raw": rm.value if rm else None,
@@ -171,7 +181,7 @@ def build(
                 _Row(
                     {
                         "slice": cell(name),
-                        "label": cell(rate_label(key, ro)),
+                        "label": code(rate_label(key, ro)),
                         "n": rm.n_items if rm else 0,
                         "value": fmt_rate(rm),
                         "delta": fmt_delta("rate:", d.delta) if d else "n/a",
@@ -199,45 +209,66 @@ def build(
     gate_rows = []
     if gate:
         for rr in gate.rules:
-            parts = []
-            for c in rr.checks:
-                mark = "ok" if c.passed else "FAIL"
-                parts.append(f"{c.check}: {_humanise(rr.rule.metric, c.check, c.detail)} ({mark})")
+            # One check per line, from the rule's numbers (PRD-B). A passing min_items check is left out:
+            # the Items column shows it.
+            parts = [
+                f"{check_text(rr.rule.metric, c)} ({'ok' if c.passed else 'FAIL'})"
+                for c in rr.checks
+                if not (c.check == "min_items" and c.passed)
+            ]
             if rr.note:
                 parts.append(rr.note)
             gate_rows.append(
                 _Row(
                     {
-                        "label": cell(rr.rule.label),
+                        "label": code(rr.rule.label),
                         "current": fmt_metric(rr.rule.metric, rr.current),
                         "base": fmt_metric(rr.rule.metric, rr.baseline)
                         if gate.baseline_run_id
                         else "no baseline",
                         "n": rr.n_items,
                         "min": rr.min_items,
-                        "checks": cell("; ".join(parts)),
+                        "checks": [cell(p) for p in parts],
                         "passed": rr.passed,
                         "report_only": rr.report_only,
                     }
                 )
             )
 
-    failing = [r for r in run.items if not r.passed]
+    failing = [r for r in run.items if not r.passed and not r.not_scored]
+    not_scored = [r.item_id for r in run.items if r.not_scored]
     failing_rows = []
     for r in failing[:MAX_FAILING_ROWS]:
         gating = [s for s in r.scores if not s.report_only]
         bad = [f"{s.key}: {s.detail}" if s.detail else s.key for s in gating if not s.passed]
-        if not gating:
-            bad = ["no scorer applied"]
         failing_rows.append(
             _Row(
                 {
-                    "id": cell(r.item_id),
+                    "id": code(r.item_id),
                     "slices": cell(", ".join(r.slices) or "-"),
-                    "detail": cell("; ".join(bad))[:300],
+                    "detail": cell("; ".join(bad)[:300]),
                 }
             )
         )
+
+    # First screen (PRD-F): why the gate failed, one line per failing gating rule, in the PRD-B wording.
+    why = []
+    if gate and not gate.passed:
+        for rr in gate.rules:
+            if rr.report_only or rr.passed:
+                continue
+            failing_checks = [check_text(rr.rule.metric, c) for c in rr.checks if not c.passed]
+            why.append((code(rr.rule.label), cell("; ".join(failing_checks))))
+    cross = None
+    if baseline is not None and baseline.target.name != run.target.name:
+        cross = baseline.target.name
+    desc = run.descriptions
+    key_scorers = []
+    key_slices = []
+    if desc is not None:
+        shown_keys = set(m.rates) | {k[5:] for k, _ in deltas if k.startswith("rate:")}
+        key_scorers = [(code(k), cell(v)) for k, v in desc.scorers.items() if k in shown_keys]
+        key_slices = [(code(k), cell(v)) for k, v in desc.slices.items() if k in m.slices]
 
     return ReportData(
         run=run,
@@ -254,6 +285,11 @@ def build(
         failing_rows=failing_rows,
         failing_total=len(failing),
         failing_more=len(failing) > MAX_FAILING_ROWS,
+        not_scored=[code(i) for i in not_scored[:MAX_FAILING_ROWS]],
+        why=why,
+        cross_target=cross,
+        key_scorers=key_scorers,
+        key_slices=key_slices,
         version=__version__,
     )
 
@@ -270,22 +306,3 @@ def render(
     # Headings always get a blank line around them; collapse runs of blank lines left by conditional blocks.
     text = re.sub(r"\n(#{1,6} [^\n]*)\n", r"\n\n\1\n\n", text)
     return re.sub(r"\n{3,}", "\n\n", text).strip() + "\n"
-
-
-_NUM = re.compile(r"-?\d+(?:\.\d+)?(?:e-?\d+)?")
-
-
-def _humanise(metric: str, check: str, detail: str) -> str:
-    """Re-format raw numbers in a check detail using the metric's units."""
-    if check in {"min_items", "reported"} or "baseline" in detail:
-        return detail
-    is_change = check in {"max_drop", "max_rise"}
-    nums = _NUM.findall(detail)
-    if len(nums) != 2:
-        return detail
-    a, b = (float(x) for x in nums)
-    if is_change:
-        word = "drop" if check == "max_drop" else "rise"
-        return f"{word} {fmt_limit(metric, a, is_change=True)} <= {fmt_limit(metric, b, is_change=True)}"
-    op = ">=" if check == "floor" else "<="
-    return f"{fmt_metric(metric, a)} {op} {fmt_metric(metric, b)}"

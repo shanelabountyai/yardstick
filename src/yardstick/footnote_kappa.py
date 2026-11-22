@@ -61,6 +61,8 @@ class KappaCheck:
     yardstick: str
     status: Status
     note: str = ""
+    #: 1-based index of the reference entry (one quoted line of Footnote's docs) the figure comes from.
+    quote: int = 0
 
 
 @dataclass(frozen=True)
@@ -69,6 +71,8 @@ class Reproduction:
     calibration: Calibration
     checks: list[KappaCheck]
     console: list[str]
+    #: The reference quotes, in order (``KappaCheck.quote`` indexes them from 1).
+    quotes: tuple[str, ...] = ()
 
 
 def grade_sets(sheets: Sequence[Path], answers: dict[str, Any], source: str) -> list[GradeSet]:
@@ -145,7 +149,7 @@ def _ref_figure(field: str, value: str) -> str:
 def compare(calibration: Calibration, reference: dict[str, Any]) -> list[KappaCheck]:
     stats = {s.name: s for s in calibration.sets} | {"pooled": calibration.pooled}
     checks: list[KappaCheck] = []
-    for ref in reference["checks"]:
+    for quote, ref in enumerate(reference["checks"], start=1):
         set_name, judge = str(ref["set"]), str(ref["judge"])
         fields: list[tuple[str, str]] = [(k, str(v)) for k, v in ref.get("values", {}).items()]
         if "disagree" in ref:
@@ -153,12 +157,14 @@ def compare(calibration: Calibration, reference: dict[str, Any]) -> list[KappaCh
         for field, value in fields:
             if judge != "opus":
                 checks.append(
-                    KappaCheck(set_name, judge, field, value, "\u2014", "not reproducible", SONNET_MISSING)
+                    KappaCheck(
+                        set_name, judge, field, value, "\u2014", "not reproducible", SONNET_MISSING, quote
+                    )
                 )
                 continue
             stat = stats.get(set_name)
             if stat is None or stat.n == 0:
-                checks.append(KappaCheck(set_name, judge, field, value, "not computed", "differs"))
+                checks.append(KappaCheck(set_name, judge, field, value, "not computed", "differs", "", quote))
                 continue
             if field == "disagree":
                 ys = ", ".join(sorted(d.ref for d in stat.disagreements))
@@ -170,7 +176,14 @@ def compare(calibration: Calibration, reference: dict[str, Any]) -> list[KappaCh
                 ok = ys == ref_shown
             checks.append(
                 KappaCheck(
-                    set_name, judge, field, value, ys, "match" if ok else "differs", f"reference {ref_shown}"
+                    set_name,
+                    judge,
+                    field,
+                    value,
+                    ys,
+                    "match" if ok else "differs",
+                    f"reference {ref_shown}",
+                    quote,
                 )
             )
     return checks
@@ -197,7 +210,8 @@ def reproduce(
     stats = [*cal.sets, cal.pooled] if len(cal.sets) > 1 else cal.sets
     for stat in stats:
         console += console_lines(stat, "opus", OPUS_RUN)
-    return Reproduction(run, cal, compare(cal, reference), console)
+    quotes = tuple(str(ref.get("quote", "")) for ref in reference["checks"])
+    return Reproduction(run, cal, compare(cal, reference), console, quotes)
 
 
 def render(rep: Reproduction, *, source: str) -> str:
@@ -217,14 +231,35 @@ def render(rep: Reproduction, *, source: str) -> str:
         "",
         f"**{n_match} match, {n_diff} differ, {n_nr} not reproducible.**",
         "",
-        "| Set | Judge | Figure | Footnote (doc) | Yardstick | Status | Note |",
-        "|---|---|---|---|---|---|---|",
+        "Each row is one figure as one quoted line of Footnote's docs records it (column Quote; the quotes",
+        "are listed under the table). A figure recorded by two docs is checked against each, which is why",
+        "the pooled Opus n, raw agreement and kappa appear twice, once per quote.",
+        "",
+        "| Quote | Set | Judge | Figure | Footnote (doc) | Yardstick | Status | Note |",
+        "|---|---|---|---|---|---|---|---|",
     ]
+    # Repeated reasons become markers defined once under the table (PRD-F, D-89).
+    reasons: dict[str, str] = {}
     for c in rows:
+        note = ""
+        if c.status == "not reproducible":
+            note = reasons.setdefault(c.note, f"[{chr(ord('a') + len(reasons))}]")
+        elif c.status == "differs":
+            note = _md(c.note)
+        q = f"Q{c.quote}" if c.quote else ""
         lines.append(
-            f"| {c.set} | {c.judge} | {c.figure} | {_md(c.reference)} | {_md(c.yardstick)} | {c.status} "
-            f"| {_md(c.note)} |"
+            f"| {q} | {c.set} | {c.judge} | {c.figure} | {_md(c.reference)} | {_md(c.yardstick)} "
+            f"| {c.status} | {note} |"
         )
+    lines.append("")
+    for reason, marker in reasons.items():
+        lines.append(f"{marker} {_md(reason)}")
+        lines.append("")
+    used = sorted({c.quote for c in rows if c.quote})
+    if used and rep.quotes:
+        lines.append("Quotes (verbatim in `fixtures/footnote/kappa-sources.md`):")
+        lines.append("")
+        lines += [f"- Q{n}: {rep.quotes[n - 1]}" for n in used]
     lines += [
         "",
         "## As `eval:kappa` prints it (Opus), recomputed by Yardstick",

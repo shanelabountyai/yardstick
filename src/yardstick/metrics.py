@@ -6,7 +6,9 @@ can say "not reported (7/12 items)". A run-level cost the target reported is use
 report one (D-27).
 
 Rates (D-26): ``rate:<scorer key>`` pools ``hits / total`` over every score with that key, report-only scores
-included; ``None`` when the pooled total is 0.
+included; ``None`` when the pooled total is 0. A rate's ``n_items`` counts only items whose score has a
+non-zero total, so a 0/0 score (target error or budget-skipped judge units) adds nothing toward
+``min_items`` (YS-02).
 """
 
 from __future__ import annotations
@@ -29,13 +31,21 @@ def nearest_rank(values: Sequence[int], pct: float) -> int:
     return ordered[max(rank, 1) - 1]
 
 
+def scored(results: Sequence[ItemResult]) -> list[ItemResult]:
+    """Items with a gating score: the ones pass rate and mean score are computed over (D-88)."""
+    return [r for r in results if not r.not_scored]
+
+
 def pass_rate(results: Sequence[ItemResult]) -> float | None:
+    """Share of scored items that passed; ``None`` when no item was scored (decision 9 (b))."""
+    results = scored(results)
     if not results:
         return None
     return round(sum(1 for r in results if r.passed) / len(results), 6)
 
 
 def mean_score(results: Sequence[ItemResult]) -> float | None:
+    results = scored(results)
     if not results:
         return None
     return round(math.fsum(r.score for r in results) / len(results), 6)
@@ -49,7 +59,9 @@ def rates(results: Sequence[ItemResult]) -> dict[str, RateMetric]:
             slot = acc.setdefault(s.key, [0, 0, 0])
             slot[0] += hits
             slot[1] += total
-            slot[2] += 1
+            # An item counts toward n_items only if it contributed to the rate (YS-02, D-26): a counting
+            # score of 0/0 (target error, units skipped by the judge budget) did not.
+            slot[2] += 1 if total > 0 else 0
     return {
         key: RateMetric(hits=h, total=t, n_items=n, value=round(h / t, 6) if t else None)
         for key, (h, t, n) in sorted(acc.items())
@@ -80,6 +92,7 @@ def compute(run: Run) -> MetricSet:
             pass_rate=pass_rate(members),
             mean_score=mean_score(members),
             rates=rates(members),
+            n_scored=len(scored(members)),
         )
 
     return MetricSet(
@@ -96,4 +109,5 @@ def compute(run: Run) -> MetricSet:
         slices=slices,
         rates=rates(items),
         cost_source=cost_source,
+        n_not_scored=n - len(scored(items)),
     )

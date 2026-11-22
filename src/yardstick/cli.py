@@ -6,8 +6,11 @@ Exit codes: 0 ok (or gate passed), 1 gate failed, 2 usage or input error.
 
 from __future__ import annotations
 
+import functools
 import json
+import os
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -39,18 +42,25 @@ from yardstick.kappa import (
 )
 from yardstick.models import LLM_JUDGE, GateConfig, Run, Suite
 from yardstick.report import markdown
-from yardstick.report.format import fmt_delta, fmt_metric
+from yardstick.report.format import check_text, fmt_delta, fmt_metric
 from yardstick.report.html import render_html
 from yardstick.runner import run_suite
 from yardstick.scorers import ScorerConfigError
 from yardstick.scorers.llm_judge import JudgeSession
 from yardstick.suite_check import SuiteChangedError
-from yardstick.suite_io import LoadError, load_gate, load_run, load_suite, save_run
+from yardstick.suite_io import LoadError, describe_validation, load_gate, load_run, load_suite, save_run
+
+EXIT_CODES_HELP = (
+    "Exit codes: 0 ok (gate passed), 1 gate failed (a regression or a missed threshold), "
+    "2 bad input or a target that could not run."
+)
 
 app = typer.Typer(
     add_completion=False,
     no_args_is_help=True,
     help="Yardstick: baselines, compare and CI regression gates over AI eval runs.",
+    epilog=EXIT_CODES_HELP,
+    pretty_exceptions_show_locals=False,
 )
 baseline_app = typer.Typer(no_args_is_help=True, help="Manage pinned baselines.")
 app.add_typer(baseline_app, name="baseline")
@@ -74,6 +84,53 @@ BaselinesDir = Annotated[Path, typer.Option("--baselines-dir", help="Where pinne
 def _fail(msg: str) -> typer.Exit:
     typer.echo(f"error: {msg}", err=True)
     return typer.Exit(EXIT_USAGE)
+
+
+#: Errors that always mean bad input or a target that could not run (reported in one line, no hint).
+_EXPECTED: tuple[type[BaseException], ...] = (
+    OSError,
+    UnicodeDecodeError,
+    RecursionError,
+    LoadError,
+    AdapterError,
+    ScorerConfigError,
+    JudgeError,
+    SuiteChangedError,
+)
+
+
+def _describe(exc: BaseException) -> str:
+    if isinstance(exc, OSError) and exc.filename is not None:
+        return f"{exc.filename}: {exc.strerror or exc}"
+    if isinstance(exc, UnicodeDecodeError):
+        return "input is not UTF-8 text"
+    if isinstance(exc, RecursionError):
+        return "input is nested too deeply"
+    return str(exc) or type(exc).__name__
+
+
+def _guarded[**P, R](fn: Callable[P, R]) -> Callable[P, R]:
+    """Bad input is exit 2 with one line, never a traceback or exit 1 (D-18, PRD-E). ``typer.Exit`` (a
+    gate verdict or an error already reported) passes through."""
+
+    @functools.wraps(fn)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        try:
+            return fn(*args, **kwargs)
+        except (ValidationError, OSError, ValueError, TypeError, RecursionError) as exc:
+            if os.environ.get("YARDSTICK_DEBUG"):
+                raise  # the full traceback, for a suspected bug (D-91)
+            if isinstance(exc, ValidationError):
+                raise _fail(
+                    describe_validation(exc, "valid", None).removeprefix("not a valid file: ")
+                ) from exc
+            msg = _describe(exc)
+            if not isinstance(exc, _EXPECTED):
+                # A bare ValueError/TypeError may be a bug rather than bad input: say how to see where.
+                msg += " (if this looks like a bug, rerun with YARDSTICK_DEBUG=1 for the traceback)"
+            raise _fail(msg) from exc
+
+    return wrapper
 
 
 def _load_run(path: Path) -> Run:
@@ -103,13 +160,22 @@ def _write_or_echo(text: str, out: Path | None) -> None:
         typer.echo(f"wrote {out}", err=True)
 
 
-def _resolve_baseline(run: Run, explicit: Path | None, directory: Path) -> Run | None:
+def _resolve_baseline(
+    run: Run, explicit: Path | None, directory: Path, run_path: Path, cfg: GateConfig | None = None
+) -> Run | None:
+    """The explicit baseline, else the pinned one. When none is found and the gate has a drop/rise rule,
+    say where it looked and how to pin one (decision 4 (a): the verdict stays a failed check, exit 1)."""
     if explicit is not None:
         return _load_run(explicit)
     try:
-        return baseline_mod.find(run, directory)
+        found = baseline_mod.find(run, directory)
     except (LoadError, ValidationError) as exc:
         raise _fail(f"baseline in {directory}: {exc}") from exc
+    needs = cfg is not None and any(r.max_drop is not None or r.max_rise is not None for r in cfg.rules)
+    if found is None and needs:
+        path = baseline_mod.baseline_path(run.suite_name, run.target.name, directory)
+        typer.echo(f"note: no baseline at {path}; pin one with: yardstick baseline pin {run_path}", err=True)
+    return found
 
 
 def _make_adapter(
@@ -184,6 +250,7 @@ def _make_judge(
 
 
 @app.command()
+@_guarded
 def run(
     suite: Annotated[Path, typer.Option("--suite", "-s", help="Suite file (YAML or JSON).")],
     out: Annotated[Path, typer.Option("--out", "-o", help="Where to write the run JSON.")],
@@ -261,7 +328,9 @@ def run(
         raise _fail(str(exc)) from exc
     save_run(r, out)
     passed = sum(1 for i in r.items if i.passed)
-    typer.echo(f"{r.run_id}  {s.name}  {passed}/{len(r.items)} passed  -> {out}")
+    unscored = sum(1 for i in r.items if i.not_scored)
+    note = f" ({unscored} not scored)" if unscored else ""
+    typer.echo(f"{r.run_id}  {s.name}  {passed}/{len(r.items)} passed{note}  -> {out}")
     for key, rec in r.judges.items():
         typer.echo(
             f"judge {key}: {rec.model} ({rec.source}), {rec.calls} calls, {rec.units_judged} units judged, "
@@ -271,6 +340,7 @@ def run(
 
 
 @app.command()
+@_guarded
 def compare(
     run_a: Annotated[Path, typer.Argument(help="Run A (e.g. baseline).")],
     run_b: Annotated[Path, typer.Argument(help="Run B (e.g. candidate).")],
@@ -313,7 +383,8 @@ def _calibrations(cfg: GateConfig, config_path: Path | None, extra: list[Path] |
         raise _fail(f"calibration: {exc}") from exc
 
 
-@app.command()
+@app.command(epilog=EXIT_CODES_HELP)
+@_guarded
 def gate(
     run_path: Annotated[Path, typer.Argument(help="Run JSON to gate.")],
     config: Annotated[Path, typer.Option("--config", "-c", help="Gate config (YAML or JSON).")],
@@ -330,14 +401,14 @@ def gate(
     ] = None,
     calibration: Calibrations = None,
 ) -> None:
-    """Evaluate a gate. Exit 0 if it passes, 1 if it fails."""
+    """Evaluate a gate. Exit 0 if it passes, 1 if it fails, 2 on bad input."""
     r = _load_run(run_path)
     try:
         cfg = load_gate(config)
     except (LoadError, ValidationError) as exc:
         raise _fail(f"{config}: {exc}") from exc
     cals = _calibrations(cfg, config, calibration)
-    base = _resolve_baseline(r, baseline, baselines_dir)
+    base = _resolve_baseline(r, baseline, baselines_dir, run_path, cfg)
     try:
         result = gate_mod.evaluate(cfg, r, base, allow_suite_change=allow_suite_change, calibrations=cals)
     except SuiteChangedError as exc:
@@ -354,7 +425,8 @@ def gate(
         status = "PASS" if rr.passed else "FAIL"
         if rr.report_only:
             status = f"({status.lower()})"
-        detail = "; ".join(f"{c.check}: {c.detail}" for c in rr.checks if not c.passed) or "ok"
+        failing = [check_text(rr.rule.metric, c) for c in rr.checks if not c.passed]
+        detail = "; ".join(failing) or "ok"
         if rr.note:
             detail += f"; {rr.note}"
         typer.echo(f"{status:<6}  {rr.rule.label:<28} {detail}")
@@ -364,12 +436,19 @@ def gate(
 
 
 @app.command()
+@_guarded
 def report(
     run_path: Annotated[Path, typer.Argument(help="Run JSON to report on.")],
     baseline: Annotated[
         Path | None, typer.Option("--baseline", "-b", help="Baseline run to compare.")
     ] = None,
     gate_config: Annotated[Path | None, typer.Option("--gate", "-g", help="Gate config to evaluate.")] = None,
+    baselines_dir: Annotated[
+        Path,
+        typer.Option(
+            "--baselines-dir", help="With --gate and no --baseline: where the pinned baseline is looked up."
+        ),
+    ] = baseline_mod.DEFAULT_DIR,
     allow_suite_change: AllowSuiteChange = False,
     out: Annotated[Path | None, typer.Option("--out", "-o", help="Write here instead of stdout.")] = None,
     fmt: Annotated[
@@ -377,13 +456,18 @@ def report(
     ] = "md",
     calibration: Calibrations = None,
 ) -> None:
-    """Render a markdown or HTML report for a run (optionally vs a baseline and with a gate)."""
+    """Render a markdown or HTML report for a run (optionally vs a baseline and with a gate).
+
+    With --gate, the baseline is found the way `yardstick gate` finds it (--baseline, else the pinned one).
+    """
     r = _load_run(run_path)
     base = _load_run(baseline) if baseline else None
     try:
         result = None
         if gate_config is not None:
             cfg = load_gate(gate_config)
+            if base is None:
+                base = _resolve_baseline(r, None, baselines_dir, run_path, cfg)
             cals = _calibrations(cfg, gate_config, calibration)
             result = gate_mod.evaluate(cfg, r, base, allow_suite_change=allow_suite_change, calibrations=cals)
         render = render_html if fmt == "html" else markdown.render
@@ -394,6 +478,7 @@ def report(
 
 
 @app.command()
+@_guarded
 def kappa(
     grades: Annotated[list[Path], typer.Option("--grades", help="Human grade set file (repeatable).")],
     run_path: Annotated[
@@ -435,17 +520,24 @@ def kappa(
 
 
 @baseline_app.command("pin")
+@_guarded
 def baseline_pin(
     run_path: Annotated[Path, typer.Argument(help="Run JSON to pin as the baseline.")],
     baselines_dir: BaselinesDir = baseline_mod.DEFAULT_DIR,
 ) -> None:
     """Pin a run as the baseline for its suite + target."""
     r = _load_run(run_path)
-    path = baseline_mod.pin(r, baselines_dir)
-    typer.echo(f"pinned {r.run_id} -> {path}")
+    path, old = baseline_mod.pin(r, baselines_dir)
+    if old is None:
+        typer.echo(f"pinned {r.run_id} -> {path}")
+    elif old == r.run_id:
+        typer.echo(f"pinned {r.run_id} -> {path} (unchanged)")
+    else:
+        typer.echo(f"pinned {r.run_id} -> {path} (replaced {old})")
 
 
 @footnote_app.command("suite")
+@_guarded
 def footnote_suite(
     golden: Annotated[Path, typer.Argument(help="Footnote's eval/golden.json.")],
     out: Annotated[Path | None, typer.Option("--out", "-o", help="Write here instead of stdout.")] = None,
@@ -463,6 +555,7 @@ def footnote_suite(
 
 
 @footnote_app.command("reproduce")
+@_guarded
 def footnote_reproduce(
     results_dir: Annotated[Path, typer.Option("--results-dir", help="Folder with answers-*.json.")],
     golden: Annotated[Path, typer.Option("--golden", help="Footnote's eval/golden.json.")],
@@ -495,6 +588,7 @@ def footnote_reproduce(
 
 
 @footnote_app.command("verdicts")
+@_guarded
 def footnote_verdicts(
     answers: Annotated[Path, typer.Argument(help="A judged Footnote answers-*.json file.")],
     source: Annotated[str, typer.Option(help="Where the file came from, recorded in the output.")],
@@ -509,6 +603,7 @@ def footnote_verdicts(
 
 
 @footnote_app.command("grades")
+@_guarded
 def footnote_grades(
     sheet: Annotated[Path, typer.Argument(help="A graded Footnote sheet (eval/grades*.md).")],
     answers: Annotated[Path, typer.Option("--answers", help="The answers file the sheet was drawn from.")],
@@ -531,6 +626,7 @@ def footnote_grades(
 
 
 @footnote_app.command("kappa")
+@_guarded
 def footnote_kappa_cmd(
     golden: Annotated[Path, typer.Option("--golden", help="Footnote's eval/golden.json.")],
     answers: Annotated[Path, typer.Option("--answers", help="Answers file of the judged run (1646).")],

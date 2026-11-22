@@ -12,6 +12,8 @@ A :class:`ResultsMapping` says where things are, as dotted paths (``gate.score``
     fields: {status: status, refusal_code: refusal}   # optional structured values for field scorers
     model: model               # optional, file level
     run_cost_usd: spentUsd     # optional, file level (D-27)
+    judge_model: judge         # optional, file level: the judge behind judge-derived label fields (D-79)
+    judge_prompt_hash: judgePromptHash   # optional, file level
 
 A path that is absent (or null) leaves the value unreported; it is never defaulted (YS-04). A file that
 cannot be read, has no row list, a row without a string id, a duplicate id, or an id the suite does not have
@@ -21,6 +23,7 @@ fails the whole run (exit 2), like the ``command`` adapter.
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -55,6 +58,8 @@ class ResultsMapping(BaseModel):
     fields: dict[str, str] = Field(default_factory=dict)
     model: str | None = None
     run_cost_usd: str | None = None
+    judge_model: str | None = None
+    judge_prompt_hash: str | None = None
 
 
 def get_path(doc: Any, path: str) -> Any:
@@ -109,6 +114,8 @@ class ResultsFileAdapter:
         if self._doc is MISSING:
             try:
                 text = self.path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                raise AdapterError(f"cannot read results file {self.path}: not UTF-8 text") from None
             except OSError as exc:
                 raise AdapterError(f"cannot read results file {self.path}: {exc.strerror}") from exc
             try:
@@ -123,9 +130,18 @@ class ResultsFileAdapter:
         cost = _opt(doc, self.mapping.run_cost_usd)
         if model is not None and not isinstance(model, str):
             raise AdapterError(f"{self.mapping.model!r} is not a string")
-        if cost is not None and (isinstance(cost, bool) or not isinstance(cost, int | float) or cost < 0):
+        if cost is not None and (
+            isinstance(cost, bool) or not isinstance(cost, int | float) or not math.isfinite(cost) or cost < 0
+        ):
             raise AdapterError(f"{self.mapping.run_cost_usd!r} is not a non-negative number")
-        return RunMeta(model=model, cost_usd=None if cost is None else float(cost))
+        judge_meta = {}
+        for name in ("judge_model", "judge_prompt_hash"):
+            path = getattr(self.mapping, name)
+            value = _opt(doc, path)
+            if value is not None and not isinstance(value, str):
+                raise AdapterError(f"{path!r} is not a string")
+            judge_meta[name] = value
+        return RunMeta(model=model, cost_usd=None if cost is None else float(cost), **judge_meta)
 
     def produce(self, items: Sequence[Item]) -> dict[str, Output]:
         rows = get_path(self.document(), self.mapping.rows)
@@ -159,7 +175,9 @@ class ResultsFileAdapter:
         if latency is not None and (isinstance(latency, bool) or not isinstance(latency, int)):
             raise AdapterError(f"row {n}: latency at {m.latency_ms!r} is not an integer")
         cost = _opt(row, m.cost_usd)
-        if cost is not None and (isinstance(cost, bool) or not isinstance(cost, int | float)):
+        if cost is not None and (
+            isinstance(cost, bool) or not isinstance(cost, int | float) or not math.isfinite(cost)
+        ):
             raise AdapterError(f"row {n}: cost at {m.cost_usd!r} is not a number")
         err = _opt(row, m.error)
         fields = {name: v for name, path in sorted(m.fields.items()) if (v := _opt(row, path)) is not None}

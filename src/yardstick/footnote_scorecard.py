@@ -396,6 +396,12 @@ def render(checks: Sequence[Check], *, source: str) -> str:
         f"{counts['not reproducible']} not reproducible** (each with the reason).",
         "",
     ]
+    # Each not-reproducible reason is written once, under "Why not reproducible", and the rows carry its
+    # number (PRD-F, D-89).
+    reasons: dict[str, int] = {}
+    for c in checks:
+        if c.status == "not reproducible":
+            reasons.setdefault(c.note, len(reasons) + 1)
     for section in dict.fromkeys(c.section for c in checks):
         lines += [
             f"## {section}",
@@ -405,11 +411,15 @@ def render(checks: Sequence[Check], *, source: str) -> str:
         ]
         for c in (x for x in checks if x.section == section):
             labels = {"match": "match", "differs": "**DIFFERS**"}
-            result = labels.get(c.status, f"not reproducible: {c.note}")
+            result = labels.get(c.status, f"not reproducible [{reasons.get(c.note, 0)}]")
             if c.status != "not reproducible" and c.note:
                 result += f" ({c.note})"
             cells = (c.metric, c.cell, c.scorecard, c.yardstick, result)
             lines.append("| " + " | ".join(_md(x) for x in cells) + " |")
+        lines.append("")
+    if reasons:
+        lines += ["## Why not reproducible", ""]
+        lines += [f"{n}. {_md(reason)}" for reason, n in reasons.items()]
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 

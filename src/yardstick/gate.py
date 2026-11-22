@@ -3,10 +3,11 @@
 A rule fails closed: missing baseline for a ``max_drop``/``max_rise`` check, a metric that is not reported,
 or fewer items than ``min_items`` all fail the rule (YS-02).
 
-YS-05 (Phase 3, D-40): a rule on ``rate:<key>`` where ``<key>`` is an ``llm-judge`` score gates only when
-a calibration for that judge (same model and prompt hash) has a pooled kappa at or above the gate's
-``judge.kappa_floor``. Otherwise it is still evaluated and shown, marked report-only with the reason, and
-never changes the verdict. A gate with no gating rule left fails closed (D-11).
+YS-05 (Phase 3, D-40): a rule on ``rate:<key>`` where ``<key>`` is an ``llm-judge`` score, or a
+``label-rate`` score marked ``judge: true`` (D-79), gates only when a calibration for that judge (same model
+and prompt hash) has a pooled kappa at or above the gate's ``judge.kappa_floor``, computed from at least
+``judge.min_graded`` graded units (D-80). Otherwise it is still evaluated and shown, marked report-only with
+the reason, and never changes the verdict. A gate with no gating rule left fails closed (D-11).
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from yardstick.models import (
     is_rate_metric,
     rate_key,
 )
+from yardstick.report.format import check_text
 from yardstick.suite_check import check_same_suite
 
 #: Values are compared after rounding to this many decimals, so 0.92 - 0.90 counts as exactly 0.02.
@@ -36,14 +38,6 @@ PRECISION = 6
 
 def _r(x: float) -> float:
     return round(x, PRECISION)
-
-
-def _fmt(x: float | int | None) -> str:
-    if x is None:
-        return "not reported"
-    if isinstance(x, int):
-        return str(x)
-    return f"{x:.6g}"
 
 
 def evaluate_rule(
@@ -55,32 +49,37 @@ def evaluate_rule(
     base = baseline.value(rule.metric, rule.slice) if baseline is not None else None
     checks: list[CheckResult] = []
 
-    checks.append(
-        CheckResult(check="min_items", passed=n >= min_items, detail=f"{n} item(s), need >= {min_items}")
-    )
-    if cur is None:
-        checks.append(CheckResult(check="reported", passed=False, detail=f"{rule.label} not reported"))
+    def add(
+        check: str,
+        passed: bool,
+        value: float | int | None = None,
+        limit: float | int | None = None,
+        detail: str = "",
+    ) -> None:
+        c = CheckResult(check=check, passed=passed, detail=detail, value=value, limit=limit)
+        checks.append(c.model_copy(update={"detail": detail or check_text(rule.metric, c)}))
+
+    add("min_items", n >= min_items, n, min_items)
+    if rule.slice is not None and rule.slice not in current.slices:
+        known = ", ".join(current.slices) or "none"
+        add("reported", False, detail=f"slice {rule.slice!r} not in run (slices: {known})")
+    elif cur is None:
+        add("reported", False, detail="not reported")
     else:
         if rule.floor is not None:
-            ok = _r(cur) >= _r(rule.floor)
-            checks.append(CheckResult(check="floor", passed=ok, detail=f"{_fmt(cur)} >= {_fmt(rule.floor)}"))
+            add("floor", _r(cur) >= _r(rule.floor), cur, rule.floor)
         if rule.max is not None:
-            ok = _r(cur) <= _r(rule.max)
-            checks.append(CheckResult(check="max", passed=ok, detail=f"{_fmt(cur)} <= {_fmt(rule.max)}"))
+            add("max", _r(cur) <= _r(rule.max), cur, rule.max)
         for name, limit, sign in (("max_drop", rule.max_drop, 1), ("max_rise", rule.max_rise, -1)):
             if limit is None:
                 continue
             if baseline is None:
-                checks.append(CheckResult(check=name, passed=False, detail="no baseline"))
+                add(name, False, limit=limit, detail="no baseline")
             elif base is None:
-                checks.append(CheckResult(check=name, passed=False, detail="baseline value not reported"))
+                add(name, False, limit=limit, detail="baseline value not reported")
             else:
                 change = _r((base - cur) * sign)  # drop: base - cur ; rise: cur - base
-                ok = change <= _r(limit)
-                word = "drop" if sign == 1 else "rise"
-                checks.append(
-                    CheckResult(check=name, passed=ok, detail=f"{word} {_fmt(change)} <= {_fmt(limit)}")
-                )
+                add(name, change <= _r(limit), change, limit)
     return RuleResult(
         rule=rule,
         current=cur,
@@ -93,8 +92,9 @@ def evaluate_rule(
 
 
 def judge_keys(run: Run) -> set[str]:
-    """Scorer keys in a run that come from an ``llm-judge`` scorer."""
-    keys = set(run.judges)
+    """Scorer keys in a run that come from a judge: ``llm-judge`` scorers, and ``label-rate`` scorers marked
+    ``judge: true`` (D-79)."""
+    keys = set(run.judges) | set(run.label_judges)
     for item in run.items:
         keys.update(s.key for s in item.scores if s.scorer == LLM_JUDGE)
     return keys
@@ -106,10 +106,17 @@ def judge_status(
     """``(gating, note)`` for a judge metric under YS-05."""
     floor = policy.kappa_floor
     rec = run.judges.get(key)
-    if rec is None:
+    lj = run.label_judges.get(key)
+    if rec is not None:
+        model, phash = rec.model, rec.prompt_hash
+    elif lj is not None and lj.model is not None and lj.prompt_hash is not None:
+        model, phash = lj.model, lj.prompt_hash
+    elif lj is not None:
+        return False, f"report-only (YS-05): judge behind {key!r} not reported by the target, kappa unknown"
+    else:
         return False, f"report-only (YS-05): judge for {key!r} not recorded in the run, kappa unknown"
-    who = f"{rec.model} prompt {rec.prompt_hash}"
-    found = [c for c in calibrations if c.matches(rec.model, rec.prompt_hash)]
+    who = f"{model} prompt {phash}"
+    found = [c for c in calibrations if c.matches(model, phash)]
     if not found:
         return False, f"report-only (YS-05): no calibration for {who}, kappa unknown"
     if len(found) > 1:
@@ -117,6 +124,12 @@ def judge_status(
     pooled = found[0].pooled
     if pooled.kappa is None:
         return False, f"report-only (YS-05): kappa undefined for {who} (n {pooled.n})"
+    if pooled.n < policy.min_graded:
+        return (
+            False,
+            f"report-only (YS-05): judge kappa {js_fixed(pooled.kappa, 2)} from n {pooled.n} graded units "
+            f"< min_graded {policy.min_graded}, treated as unknown",
+        )
     if round(pooled.kappa, 6) < round(floor, 6):
         return (
             False,

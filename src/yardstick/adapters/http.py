@@ -69,9 +69,12 @@ from yardstick.models import Item, Output, TargetInfo
 DEFAULT_TIMEOUT_S = 30.0
 DEFAULT_MAX_RESPONSE_BYTES = 1_048_576
 
-_ENV_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-_SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,31}$")
-_HEADER_NAME = re.compile(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
+# \Z, not $: "$" also matches before a trailing newline, which let "X-Foo\n" through (PRD-E).
+_ENV_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*\Z")
+_SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,31}\Z")
+_HEADER_NAME = re.compile(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+\Z")
+#: Deepest nesting accepted in a response's mapped ``fields`` (deeper values could not be stored).
+MAX_FIELD_DEPTH = 64
 #: Headers the adapter (or the HTTP library) sets itself.
 _RESERVED_HEADERS = frozenset({"content-type", "content-length", "host", "transfer-encoding", "connection"})
 _URL_RULE = "url must be http(s)://host[:port]/path, with no spaces and no user:password@ part"
@@ -149,7 +152,7 @@ class HttpTargetConfig(_Model):
     @field_validator("url")
     @classmethod
     def _url(cls, v: str) -> str:
-        if any(ch.isspace() or ord(ch) < 0x21 or ord(ch) == 0x7F for ch in v):
+        if not v.isascii() or any(ch.isspace() or ord(ch) < 0x21 or ord(ch) == 0x7F for ch in v):
             raise ValueError(_URL_RULE)
         try:
             parts = urlsplit(v)
@@ -282,6 +285,20 @@ def _scrub_any(value: Any, secrets: Mapping[str, str]) -> Any:
     return value
 
 
+def _depth(value: Any, limit: int = MAX_FIELD_DEPTH + 1) -> int:
+    """Nesting depth of a JSON value, counted up to ``limit`` (iterative, so it cannot recurse too deep)."""
+    deepest = 0
+    stack: list[tuple[Any, int]] = [(value, 0)]
+    while stack:
+        node, d = stack.pop()
+        deepest = max(deepest, d)
+        if deepest >= limit:
+            return deepest
+        children = node.values() if isinstance(node, dict) else node if isinstance(node, list) else ()
+        stack.extend((c, d + 1) for c in children)
+    return deepest
+
+
 def _number(value: Any) -> bool:
     return isinstance(value, int | float) and not isinstance(value, bool) and math.isfinite(value)
 
@@ -362,7 +379,8 @@ class HttpAdapter:
             with opener.open(req, timeout=self.timeout_s) as resp:
                 declared = resp.headers.get("Content-Length")
                 too_big = f"response larger than {cfg.max_response_bytes} bytes"
-                if declared is not None and declared.isdigit() and int(declared) > cfg.max_response_bytes:
+                valid = declared is not None and declared.isascii() and declared.isdigit()
+                if valid and int(declared) > cfg.max_response_bytes:
                     raise _RequestFailed(too_big)
                 chunks: list[bytes] = []
                 total = 0
@@ -432,6 +450,8 @@ class HttpAdapter:
             if cost is not None and not _number(cost):
                 raise _RequestFailed(f"response value at {m.cost_usd!r} is not a number")
             fields = {name: v for name, path in sorted(m.fields.items()) if (v := opt(path)) is not None}
+            if _depth(fields) > MAX_FIELD_DEPTH:
+                raise _RequestFailed(f"response fields nested deeper than {MAX_FIELD_DEPTH} levels")
             canonical_json(fields)  # rejects non-finite numbers now, not when the run is written
             return Output(
                 text=text,
@@ -445,6 +465,8 @@ class HttpAdapter:
             raise _RequestFailed(f"bad response value: {exc.errors()[0]['msg']}") from None
         except ValueError:
             raise _RequestFailed("response has a non-finite number") from None
+        except RecursionError:
+            raise _RequestFailed("response is nested too deeply") from None
 
     # -- adapter -----------------------------------------------------------------------------------------
 

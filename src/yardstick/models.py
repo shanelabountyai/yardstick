@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Any, ClassVar, Literal
 
@@ -15,12 +16,14 @@ from pydantic import (
     model_validator,
 )
 
-from yardstick.hashing import content_hash
+from yardstick.hashing import canonical_json, content_hash
 
 RUN_SCHEMA_VERSION = 1
 
 #: Registry name of the LLM-judge scorer (Phase 3).
 LLM_JUDGE = "llm-judge"
+#: Registry name of the label-rate scorer (Phase 2); can be marked judge-derived (D-79).
+LABEL_RATE = "label-rate"
 
 MetricName = Literal[
     "pass_rate",
@@ -41,6 +44,8 @@ SLICE_METRICS: frozenset[str] = frozenset({"pass_rate", "mean_score"})
 #: Prefix of rate metrics: ``rate:<scorer key>`` = hits / total over the items where that scorer applied.
 RATE_PREFIX = "rate:"
 _RATE_METRIC = re.compile(r"^rate:[A-Za-z0-9_.+-]+$")
+#: What a scorer key may contain: exactly what a ``rate:<key>`` gate rule can name (PRD-G).
+_SCORER_KEY = re.compile(r"[A-Za-z0-9_.+-]+")
 _FIXED_METRICS: frozenset[str] = frozenset(
     {"pass_rate", "mean_score", "latency_p50_ms", "latency_p95_ms", "cost_total_usd", "cost_per_item_usd"}
 )
@@ -100,14 +105,18 @@ class ScorerSpec(_Additive):
 
     ``report_only`` scores are recorded and feed ``rate:<key>`` metrics but never decide an item's pass or
     mean score (D-25).
+
+    ``judge: true`` marks a ``label-rate`` scorer whose labels come from an LLM judge (e.g. Footnote's
+    per-sentence verdicts), so YS-05 governs its ``rate:<key>`` rules like an ``llm-judge`` key's (D-79).
     """
 
-    _omit_if_empty: ClassVar[tuple[str, ...]] = ("report_only",)
+    _omit_if_empty: ClassVar[tuple[str, ...]] = ("report_only", "judge")
 
     name: str
     key: str | None = None
     options: dict[str, Any] = Field(default_factory=dict)
     report_only: bool = False
+    judge: bool = False
 
     @property
     def expected_key(self) -> str:
@@ -133,11 +142,22 @@ class Item(_Strict):
         return v
 
 
-class Suite(_Strict):
+class Descriptions(_Strict):
+    """Plain-words labels for scorer keys and slices, shown as a "Key" in reports (decision 5 (b), D-89).
+    Like ``Suite.description`` they are not part of the suite hash, so editing them moves nothing."""
+
+    scorers: dict[str, str] = Field(default_factory=dict)
+    slices: dict[str, str] = Field(default_factory=dict)
+
+
+class Suite(_Additive):
+    _omit_if_empty: ClassVar[tuple[str, ...]] = ("descriptions",)
+
     name: str
     description: str = ""
     scorers: list[ScorerSpec]
     items: list[Item]
+    descriptions: Descriptions | None = None
 
     @model_validator(mode="after")
     def _check(self) -> Suite:
@@ -145,10 +165,32 @@ class Suite(_Strict):
         dupes = sorted({i for i in ids if ids.count(i) > 1})
         if dupes:
             raise ValueError(f"duplicate item ids: {dupes}")
+        from yardstick.scorers import scorer_names  # local import: scorers import this module
+
+        available = scorer_names()
+        for spec in self.scorers:
+            if spec.name not in available:
+                raise ValueError(f"unknown scorer {spec.name!r}; available: {', '.join(available)}")
         keys = [s.expected_key for s in self.scorers]
+        for key in keys:
+            if not _SCORER_KEY.fullmatch(key):
+                raise ValueError(
+                    f"scorer key {key!r} must use only letters, digits and . _ + - (so a gate rule "
+                    "rate:<key> can name it)"
+                )
         if len(keys) != len(set(keys)):
             raise ValueError("scorer keys must be unique; set `key` when a scorer is used twice")
         for spec in self.scorers:
+            if spec.judge and spec.name != LABEL_RATE:
+                raise ValueError(
+                    f"scorer {spec.expected_key!r}: judge: true applies to label-rate scorers only "
+                    "(llm-judge keys are judge-derived already)"
+                )
+            if spec.judge and not spec.report_only:
+                raise ValueError(
+                    f"scorer {spec.expected_key!r}: a judge-derived label-rate must be report_only: true, so "
+                    "an uncalibrated judge never decides an item's pass (YS-05, D-79)"
+                )
             if spec.name == LLM_JUDGE and not spec.report_only:
                 raise ValueError(
                     f"scorer {spec.expected_key!r}: llm-judge scores must be report_only: true; a judge "
@@ -163,6 +205,13 @@ class Suite(_Strict):
                 )
             if not item.expected:
                 raise ValueError(f"item {item.id!r} has no expected values, so nothing would score it")
+            try:
+                canonical_json(item.input)
+            except (TypeError, ValueError):
+                raise ValueError(
+                    f"item {item.id!r}: input is not JSON (an unquoted YAML date or a non-finite number? "
+                    "quote it); targets receive inputs as JSON"
+                ) from None
         return self
 
     @property
@@ -255,13 +304,20 @@ class Score(_Additive):
         return (1 if self.passed else 0), 1
 
 
-class ItemResult(_Strict):
+class ItemResult(_Additive):
+    """``not_scored``: no gating (non-report-only) scorer produced a score for this item, so it is left out
+    of ``pass_rate`` and ``mean_score`` and shown as "not scored" (decision 9 (b), D-88). Serialised only
+    when true, so other runs and their ids do not change (D-24)."""
+
+    _omit_if_empty: ClassVar[tuple[str, ...]] = ("not_scored",)
+
     item_id: str
     slices: list[str]
     output: Output
     scores: list[Score]
     passed: bool
     score: float
+    not_scored: bool = False
 
 
 class TargetInfo(_Strict):
@@ -287,12 +343,29 @@ class JudgeRecord(_Strict):
     overrun: bool = False
 
 
+class LabelJudge(_Strict):
+    """The judge behind a judge-derived ``label-rate`` key (``judge: true``), as the target reported it.
+    ``model``/``prompt_hash`` are None when the target did not report them; YS-05 then treats the judge's
+    kappa as unknown (D-79)."""
+
+    model: str | None = None
+    prompt_hash: str | None = None
+    source: str
+
+
 class Run(_Additive):
     """One execution. ``reported_cost_usd`` is a run-level cost the target reported (e.g. Footnote's
     ``spentUsd``); it is used only when items do not all report their own cost (D-27). ``judges`` records each
-    ``llm-judge`` scorer key's judge identity and spend (Phase 3)."""
+    ``llm-judge`` scorer key's judge identity and spend (Phase 3). ``label_judges`` records the judge identity
+    behind each judge-derived ``label-rate`` key (D-79). ``descriptions`` carries the suite's labels for the
+    report's Key; it is left out of the run id (D-89)."""
 
-    _omit_if_empty: ClassVar[tuple[str, ...]] = ("reported_cost_usd", "judges")
+    _omit_if_empty: ClassVar[tuple[str, ...]] = (
+        "reported_cost_usd",
+        "judges",
+        "label_judges",
+        "descriptions",
+    )
 
     schema_version: int = RUN_SCHEMA_VERSION
     run_id: str
@@ -306,6 +379,8 @@ class Run(_Additive):
     items: list[ItemResult]
     reported_cost_usd: float | None = None
     judges: dict[str, JudgeRecord] = Field(default_factory=dict)
+    label_judges: dict[str, LabelJudge] = Field(default_factory=dict)
+    descriptions: Descriptions | None = None
 
     @field_validator("reported_cost_usd")
     @classmethod
@@ -318,8 +393,8 @@ class Run(_Additive):
 
     @staticmethod
     def compute_id(payload: dict[str, Any]) -> str:
-        """Run id = hash of the run's content excluding ``run_id`` and ``started_at``."""
-        body = {k: v for k, v in payload.items() if k not in {"run_id", "started_at"}}
+        """Run id = hash of the run's content excluding ``run_id``, ``started_at`` and ``descriptions``."""
+        body = {k: v for k, v in payload.items() if k not in {"run_id", "started_at", "descriptions"}}
         return content_hash(body)[: len("sha256:") + 16]
 
 
@@ -340,6 +415,8 @@ class SliceMetrics(_Strict):
     pass_rate: float | None
     mean_score: float | None
     rates: dict[str, RateMetric] = Field(default_factory=dict)
+    #: Items behind pass_rate / mean_score (the scored ones, D-88).
+    n_scored: int = 0
 
 
 class MetricSet(_Strict):
@@ -357,6 +434,8 @@ class MetricSet(_Strict):
     rates: dict[str, RateMetric] = Field(default_factory=dict)
     #: Where the cost metrics came from: every item ("items"), the run-level total ("run"), or nowhere (None).
     cost_source: Literal["items", "run"] | None = None
+    #: Items with no gating score, left out of pass_rate / mean_score (D-88).
+    n_not_scored: int = 0
 
     def rate(self, key: str, slice_name: str | None = None) -> RateMetric | None:
         if slice_name is None:
@@ -382,14 +461,18 @@ class MetricSet(_Strict):
         return out
 
     def count(self, slice_name: str | None = None, metric: str | None = None) -> int:
-        """Items behind a metric: for ``rate:<key>``, only the items where that scorer applied."""
+        """Items behind a metric: for ``rate:<key>``, only the items where that scorer applied; for
+        ``pass_rate``/``mean_score``, only the scored items (D-88)."""
         if metric is not None and is_rate_metric(metric):
             rm = self.rate(rate_key(metric), slice_name)
             return 0 if rm is None else rm.n_items
+        scored = metric in SLICE_METRICS
         if slice_name is None:
-            return self.n_items
+            return self.n_items - self.n_not_scored if scored else self.n_items
         sm = self.slices.get(slice_name)
-        return 0 if sm is None else sm.n_items
+        if sm is None:
+            return 0
+        return sm.n_scored if scored else sm.n_items
 
 
 # --------------------------------------------------------------------------- gates
@@ -404,6 +487,22 @@ class GateRule(_Strict):
     max_drop: float | None = None
     max_rise: float | None = None
     min_items: int | None = None
+
+    @field_validator("min_items", mode="before")
+    @classmethod
+    def _min_items_not_bool(cls, v: Any) -> Any:
+        if isinstance(v, bool):
+            raise ValueError("must be a whole number, not true/false")
+        return v
+
+    @field_validator("floor", "max", "max_drop", "max_rise", mode="before")
+    @classmethod
+    def _threshold(cls, v: Any) -> Any:
+        if isinstance(v, bool):
+            raise ValueError("must be a number, not true/false")
+        if isinstance(v, int | float) and not math.isfinite(v):
+            raise ValueError("must be a finite number")
+        return v
 
     @model_validator(mode="after")
     def _check(self) -> GateRule:
@@ -421,6 +520,15 @@ class GateRule(_Strict):
             v = getattr(self, name)
             if v is not None and v < 0:
                 raise ValueError(f"{name} must be >= 0")
+        if self.metric in HIGHER_IS_BETTER or is_rate_metric(self.metric):
+            # Rates are fractions: 0.85 means 85%, and max_drop 0.02 means 2 points (D-12).
+            for name in ("floor", "max", "max_drop", "max_rise"):
+                v = getattr(self, name)
+                if v is not None and not 0 <= v <= 1:
+                    raise ValueError(
+                        f"{self.label}: {name} {v:g} must be between 0 and 1 (a fraction: 0.85 = 85%, "
+                        "0.02 = 2 points)"
+                    )
         return self
 
     @property
@@ -430,11 +538,20 @@ class GateRule(_Strict):
 
 class JudgePolicy(_Strict):
     """YS-05: a ``rate:<key>`` rule over an ``llm-judge`` score gates only when that judge's pooled kappa
-    (from a calibration file matching its model and prompt hash) is at least ``kappa_floor`` (D-06, D-40).
+    (from a calibration file matching its model and prompt hash) is at least ``kappa_floor`` (D-06, D-40) and
+    was computed from at least ``min_graded`` graded units (D-80); a smaller n counts as unknown.
     ``calibrations`` are paths relative to the gate file."""
 
     kappa_floor: float = 0.6
+    min_graded: int = 30
     calibrations: list[str] = Field(default_factory=list)
+
+    @field_validator("min_graded")
+    @classmethod
+    def _min_graded(cls, v: int) -> int:
+        if v < 1:
+            raise ValueError("min_graded must be >= 1")
+        return v
 
     @field_validator("kappa_floor")
     @classmethod
@@ -452,6 +569,13 @@ class GateConfig(_Additive):
     rules: list[GateRule]
     judge: JudgePolicy | None = None
 
+    @field_validator("min_items", mode="before")
+    @classmethod
+    def _min_not_bool(cls, v: Any) -> Any:
+        if isinstance(v, bool):
+            raise ValueError("must be a whole number, not true/false")
+        return v
+
     @field_validator("min_items")
     @classmethod
     def _min(cls, v: int) -> int:
@@ -461,9 +585,15 @@ class GateConfig(_Additive):
 
 
 class CheckResult(_Strict):
+    """One check of a gate rule. ``value`` and ``limit`` are the numbers the check compared (for
+    ``max_drop``/``max_rise``, ``value`` is the change: positive = dropped / rose), so the text is built from
+    numbers by :func:`yardstick.report.format.check_text`, never parsed back (PRD-B)."""
+
     check: str
     passed: bool
     detail: str
+    value: float | int | None = None
+    limit: float | int | None = None
 
 
 class RuleResult(_Strict):
