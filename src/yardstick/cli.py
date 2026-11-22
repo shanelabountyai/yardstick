@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import functools
 import json
+import os
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
@@ -85,6 +86,19 @@ def _fail(msg: str) -> typer.Exit:
     return typer.Exit(EXIT_USAGE)
 
 
+#: Errors that always mean bad input or a target that could not run (reported in one line, no hint).
+_EXPECTED: tuple[type[BaseException], ...] = (
+    OSError,
+    UnicodeDecodeError,
+    RecursionError,
+    LoadError,
+    AdapterError,
+    ScorerConfigError,
+    JudgeError,
+    SuiteChangedError,
+)
+
+
 def _describe(exc: BaseException) -> str:
     if isinstance(exc, OSError) and exc.filename is not None:
         return f"{exc.filename}: {exc.strerror or exc}"
@@ -103,15 +117,18 @@ def _guarded[**P, R](fn: Callable[P, R]) -> Callable[P, R]:
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
         try:
             return fn(*args, **kwargs)
-        except ValidationError as exc:
-            raise _fail(describe_validation(exc, "valid", None).removeprefix("not a valid file: ")) from exc
-        except (
-            OSError,
-            ValueError,
-            TypeError,
-            RecursionError,
-        ) as exc:  # incl. UnicodeDecodeError, JudgeError
-            raise _fail(_describe(exc)) from exc
+        except (ValidationError, OSError, ValueError, TypeError, RecursionError) as exc:
+            if os.environ.get("YARDSTICK_DEBUG"):
+                raise  # the full traceback, for a suspected bug (D-91)
+            if isinstance(exc, ValidationError):
+                raise _fail(
+                    describe_validation(exc, "valid", None).removeprefix("not a valid file: ")
+                ) from exc
+            msg = _describe(exc)
+            if not isinstance(exc, _EXPECTED):
+                # A bare ValueError/TypeError may be a bug rather than bad input: say how to see where.
+                msg += " (if this looks like a bug, rerun with YARDSTICK_DEBUG=1 for the traceback)"
+            raise _fail(msg) from exc
 
     return wrapper
 

@@ -176,3 +176,33 @@ def test_unknown_slice_lists_the_run_slices(tmp_path: Path, healthy: Path) -> No
     r = invoke("gate", str(healthy), "-c", str(gate))
     assert r.exit_code == 1
     assert "slice 'refusals' not in run (slices: account, faq, refusal)" in r.stdout
+
+
+def test_unexpected_errors_point_at_the_debug_switch(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Review of PR #8: a bare TypeError/ValueError may be a bug, so the one-line message says how to get the
+    traceback, and YARDSTICK_DEBUG=1 lets it through."""
+    from yardstick import cli
+
+    def boom(*_: object, **__: object) -> None:
+        raise TypeError("unexpected internal error")
+
+    monkeypatch.setattr(cli, "load_suite", boom)
+    args = ["run", "-s", SUITE, "--cmd", FAKE, "-o", str(tmp_path / "x.json")]
+    r = invoke(*args)
+    assert_usage_error(r, "unexpected internal error", "YARDSTICK_DEBUG=1")
+    monkeypatch.setenv("YARDSTICK_DEBUG", "1")
+    r = invoke(*args)
+    assert isinstance(r.exception, TypeError)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "min_items: true\nrules: [{metric: pass_rate, floor: 0.5}]\n",
+        "rules: [{metric: pass_rate, floor: 0.5, min_items: true}]\n",
+    ],
+)
+def test_min_items_true_is_refused(tmp_path: Path, healthy: Path, body: str) -> None:
+    gate = tmp_path / "g.yaml"
+    gate.write_text(body, encoding="utf-8")
+    assert_usage_error(invoke("gate", str(healthy), "-c", str(gate)), "not true/false")

@@ -130,7 +130,8 @@ runs one job with no database, no model call and no secret:
 
 Suites, replayed verdicts and the κ calibration are rebuilt in CI from Footnote's `eval/golden.json`, answers file and
 grade sheets (D-46). Both gates passed on the PR's first run, and each posted one PR comment that is updated in
-place on later pushes. The gate table from the judged comment:
+place on later pushes. The gate table from the judged comment, as it was posted then (before the column order and
+check wording changed in PRD-B and PRD-I):
 
 | Rule | Current | Baseline | Items | Result |
 |---|---|---|---|---|

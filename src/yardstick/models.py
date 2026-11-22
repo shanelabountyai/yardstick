@@ -488,6 +488,13 @@ class GateRule(_Strict):
     max_rise: float | None = None
     min_items: int | None = None
 
+    @field_validator("min_items", mode="before")
+    @classmethod
+    def _min_items_not_bool(cls, v: Any) -> Any:
+        if isinstance(v, bool):
+            raise ValueError("must be a whole number, not true/false")
+        return v
+
     @field_validator("floor", "max", "max_drop", "max_rise", mode="before")
     @classmethod
     def _threshold(cls, v: Any) -> Any:
@@ -561,6 +568,13 @@ class GateConfig(_Additive):
     min_items: int = 1
     rules: list[GateRule]
     judge: JudgePolicy | None = None
+
+    @field_validator("min_items", mode="before")
+    @classmethod
+    def _min_not_bool(cls, v: Any) -> Any:
+        if isinstance(v, bool):
+            raise ValueError("must be a whole number, not true/false")
+        return v
 
     @field_validator("min_items")
     @classmethod

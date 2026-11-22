@@ -29,7 +29,7 @@ live model call, no API key.
 | `uv run ruff check .` | 0 | `All checks passed!` |
 | `uv run ruff format --check .` | 0 | `121 files already formatted` |
 | `uv run mypy` | 0 | `Success: no issues found in 82 source files` |
-| `uv run pytest` | 0 | `400 passed` (332 on `main`) |
+| `uv run pytest` | 0 | `403 passed` (332 on `main`; 400 before the PR #8 review fixes, D-91) |
 | `bash examples/make-example.sh && git diff --exit-code examples/` | 0, 0 | no difference after the committed regeneration |
 
 CI on the pull request decides; its conclusions are in the pull request body.
@@ -39,7 +39,7 @@ the branch; every exit code matched the README (11 exit 0, 3 exit 1 as annotated
 
 ### D-rows added
 
-D-79 to D-90 in `docs/DECISIONS.md` (and D-30's wording updated for decision 8).
+D-79 to D-91 in `docs/DECISIONS.md` (and D-30's wording updated for decision 8).
 
 ### Not verified
 
