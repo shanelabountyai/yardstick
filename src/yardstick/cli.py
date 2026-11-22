@@ -6,8 +6,10 @@ Exit codes: 0 ok (or gate passed), 1 gate failed, 2 usage or input error.
 
 from __future__ import annotations
 
+import functools
 import json
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -45,7 +47,7 @@ from yardstick.runner import run_suite
 from yardstick.scorers import ScorerConfigError
 from yardstick.scorers.llm_judge import JudgeSession
 from yardstick.suite_check import SuiteChangedError
-from yardstick.suite_io import LoadError, load_gate, load_run, load_suite, save_run
+from yardstick.suite_io import LoadError, describe_validation, load_gate, load_run, load_suite, save_run
 
 EXIT_CODES_HELP = (
     "Exit codes: 0 ok (gate passed), 1 gate failed (a regression or a missed threshold), "
@@ -81,6 +83,37 @@ BaselinesDir = Annotated[Path, typer.Option("--baselines-dir", help="Where pinne
 def _fail(msg: str) -> typer.Exit:
     typer.echo(f"error: {msg}", err=True)
     return typer.Exit(EXIT_USAGE)
+
+
+def _describe(exc: BaseException) -> str:
+    if isinstance(exc, OSError) and exc.filename is not None:
+        return f"{exc.filename}: {exc.strerror or exc}"
+    if isinstance(exc, UnicodeDecodeError):
+        return "input is not UTF-8 text"
+    if isinstance(exc, RecursionError):
+        return "input is nested too deeply"
+    return str(exc) or type(exc).__name__
+
+
+def _guarded[**P, R](fn: Callable[P, R]) -> Callable[P, R]:
+    """Bad input is exit 2 with one line, never a traceback or exit 1 (D-18, PRD-E). ``typer.Exit`` (a
+    gate verdict or an error already reported) passes through."""
+
+    @functools.wraps(fn)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        try:
+            return fn(*args, **kwargs)
+        except ValidationError as exc:
+            raise _fail(describe_validation(exc, "valid", None).removeprefix("not a valid file: ")) from exc
+        except (
+            OSError,
+            ValueError,
+            TypeError,
+            RecursionError,
+        ) as exc:  # incl. UnicodeDecodeError, JudgeError
+            raise _fail(_describe(exc)) from exc
+
+    return wrapper
 
 
 def _load_run(path: Path) -> Run:
@@ -200,6 +233,7 @@ def _make_judge(
 
 
 @app.command()
+@_guarded
 def run(
     suite: Annotated[Path, typer.Option("--suite", "-s", help="Suite file (YAML or JSON).")],
     out: Annotated[Path, typer.Option("--out", "-o", help="Where to write the run JSON.")],
@@ -287,6 +321,7 @@ def run(
 
 
 @app.command()
+@_guarded
 def compare(
     run_a: Annotated[Path, typer.Argument(help="Run A (e.g. baseline).")],
     run_b: Annotated[Path, typer.Argument(help="Run B (e.g. candidate).")],
@@ -330,6 +365,7 @@ def _calibrations(cfg: GateConfig, config_path: Path | None, extra: list[Path] |
 
 
 @app.command(epilog=EXIT_CODES_HELP)
+@_guarded
 def gate(
     run_path: Annotated[Path, typer.Argument(help="Run JSON to gate.")],
     config: Annotated[Path, typer.Option("--config", "-c", help="Gate config (YAML or JSON).")],
@@ -381,6 +417,7 @@ def gate(
 
 
 @app.command()
+@_guarded
 def report(
     run_path: Annotated[Path, typer.Argument(help="Run JSON to report on.")],
     baseline: Annotated[
@@ -422,6 +459,7 @@ def report(
 
 
 @app.command()
+@_guarded
 def kappa(
     grades: Annotated[list[Path], typer.Option("--grades", help="Human grade set file (repeatable).")],
     run_path: Annotated[
@@ -463,6 +501,7 @@ def kappa(
 
 
 @baseline_app.command("pin")
+@_guarded
 def baseline_pin(
     run_path: Annotated[Path, typer.Argument(help="Run JSON to pin as the baseline.")],
     baselines_dir: BaselinesDir = baseline_mod.DEFAULT_DIR,
@@ -479,6 +518,7 @@ def baseline_pin(
 
 
 @footnote_app.command("suite")
+@_guarded
 def footnote_suite(
     golden: Annotated[Path, typer.Argument(help="Footnote's eval/golden.json.")],
     out: Annotated[Path | None, typer.Option("--out", "-o", help="Write here instead of stdout.")] = None,
@@ -496,6 +536,7 @@ def footnote_suite(
 
 
 @footnote_app.command("reproduce")
+@_guarded
 def footnote_reproduce(
     results_dir: Annotated[Path, typer.Option("--results-dir", help="Folder with answers-*.json.")],
     golden: Annotated[Path, typer.Option("--golden", help="Footnote's eval/golden.json.")],
@@ -528,6 +569,7 @@ def footnote_reproduce(
 
 
 @footnote_app.command("verdicts")
+@_guarded
 def footnote_verdicts(
     answers: Annotated[Path, typer.Argument(help="A judged Footnote answers-*.json file.")],
     source: Annotated[str, typer.Option(help="Where the file came from, recorded in the output.")],
@@ -542,6 +584,7 @@ def footnote_verdicts(
 
 
 @footnote_app.command("grades")
+@_guarded
 def footnote_grades(
     sheet: Annotated[Path, typer.Argument(help="A graded Footnote sheet (eval/grades*.md).")],
     answers: Annotated[Path, typer.Option("--answers", help="The answers file the sheet was drawn from.")],
@@ -564,6 +607,7 @@ def footnote_grades(
 
 
 @footnote_app.command("kappa")
+@_guarded
 def footnote_kappa_cmd(
     golden: Annotated[Path, typer.Option("--golden", help="Footnote's eval/golden.json.")],
     answers: Annotated[Path, typer.Option("--answers", help="Answers file of the judged run (1646).")],

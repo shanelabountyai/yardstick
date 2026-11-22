@@ -23,6 +23,7 @@ fails the whole run (exit 2), like the ``command`` adapter.
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -113,6 +114,8 @@ class ResultsFileAdapter:
         if self._doc is MISSING:
             try:
                 text = self.path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                raise AdapterError(f"cannot read results file {self.path}: not UTF-8 text") from None
             except OSError as exc:
                 raise AdapterError(f"cannot read results file {self.path}: {exc.strerror}") from exc
             try:
@@ -127,7 +130,9 @@ class ResultsFileAdapter:
         cost = _opt(doc, self.mapping.run_cost_usd)
         if model is not None and not isinstance(model, str):
             raise AdapterError(f"{self.mapping.model!r} is not a string")
-        if cost is not None and (isinstance(cost, bool) or not isinstance(cost, int | float) or cost < 0):
+        if cost is not None and (
+            isinstance(cost, bool) or not isinstance(cost, int | float) or not math.isfinite(cost) or cost < 0
+        ):
             raise AdapterError(f"{self.mapping.run_cost_usd!r} is not a non-negative number")
         judge_meta = {}
         for name in ("judge_model", "judge_prompt_hash"):
@@ -170,7 +175,9 @@ class ResultsFileAdapter:
         if latency is not None and (isinstance(latency, bool) or not isinstance(latency, int)):
             raise AdapterError(f"row {n}: latency at {m.latency_ms!r} is not an integer")
         cost = _opt(row, m.cost_usd)
-        if cost is not None and (isinstance(cost, bool) or not isinstance(cost, int | float)):
+        if cost is not None and (
+            isinstance(cost, bool) or not isinstance(cost, int | float) or not math.isfinite(cost)
+        ):
             raise AdapterError(f"row {n}: cost at {m.cost_usd!r} is not a number")
         err = _opt(row, m.error)
         fields = {name: v for name, path in sorted(m.fields.items()) if (v := _opt(row, path)) is not None}

@@ -35,7 +35,11 @@ class CommandAdapter:
 
     @classmethod
     def from_string(cls, name: str, command: str, timeout_s: float = 300.0) -> CommandAdapter:
-        return cls(name, shlex.split(command), timeout_s)
+        try:
+            argv = shlex.split(command)
+        except ValueError as exc:
+            raise AdapterError(f"cannot parse --cmd: {exc}") from None
+        return cls(name, argv, timeout_s)
 
     def produce(self, items: Sequence[Item]) -> dict[str, Output]:
         stdin = "".join(canonical_json({"id": i.id, "input": i.input}) + "\n" for i in items)
@@ -52,6 +56,8 @@ class CommandAdapter:
             raise AdapterError(f"command not found: {self.argv[0]}") from exc
         except subprocess.TimeoutExpired as exc:
             raise AdapterError(f"command timed out after {self.timeout_s:g}s") from exc
+        except OSError as exc:
+            raise AdapterError(f"cannot run command {self.argv[0]}: {exc.strerror or exc}") from exc
         if proc.returncode != 0:
             tail = proc.stderr.strip().splitlines()[-5:]
             raise AdapterError(f"command exited {proc.returncode}: {' | '.join(tail)}")

@@ -60,7 +60,10 @@ def evaluate_rule(
         checks.append(c.model_copy(update={"detail": detail or check_text(rule.metric, c)}))
 
     add("min_items", n >= min_items, n, min_items)
-    if cur is None:
+    if rule.slice is not None and rule.slice not in current.slices:
+        known = ", ".join(current.slices) or "none"
+        add("reported", False, detail=f"slice {rule.slice!r} not in run (slices: {known})")
+    elif cur is None:
         add("reported", False, detail="not reported")
     else:
         if rule.floor is not None:

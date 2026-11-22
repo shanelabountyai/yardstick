@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Any, ClassVar, Literal
 
@@ -15,7 +16,7 @@ from pydantic import (
     model_validator,
 )
 
-from yardstick.hashing import content_hash
+from yardstick.hashing import canonical_json, content_hash
 
 RUN_SCHEMA_VERSION = 1
 
@@ -151,6 +152,12 @@ class Suite(_Strict):
         dupes = sorted({i for i in ids if ids.count(i) > 1})
         if dupes:
             raise ValueError(f"duplicate item ids: {dupes}")
+        from yardstick.scorers import scorer_names  # local import: scorers import this module
+
+        available = scorer_names()
+        for spec in self.scorers:
+            if spec.name not in available:
+                raise ValueError(f"unknown scorer {spec.name!r}; available: {', '.join(available)}")
         keys = [s.expected_key for s in self.scorers]
         if len(keys) != len(set(keys)):
             raise ValueError("scorer keys must be unique; set `key` when a scorer is used twice")
@@ -179,6 +186,13 @@ class Suite(_Strict):
                 )
             if not item.expected:
                 raise ValueError(f"item {item.id!r} has no expected values, so nothing would score it")
+            try:
+                canonical_json(item.input)
+            except (TypeError, ValueError):
+                raise ValueError(
+                    f"item {item.id!r}: input is not JSON (an unquoted YAML date or a non-finite number? "
+                    "quote it); targets receive inputs as JSON"
+                ) from None
         return self
 
     @property
@@ -433,6 +447,15 @@ class GateRule(_Strict):
     max_rise: float | None = None
     min_items: int | None = None
 
+    @field_validator("floor", "max", "max_drop", "max_rise", mode="before")
+    @classmethod
+    def _threshold(cls, v: Any) -> Any:
+        if isinstance(v, bool):
+            raise ValueError("must be a number, not true/false")
+        if isinstance(v, int | float) and not math.isfinite(v):
+            raise ValueError("must be a finite number")
+        return v
+
     @model_validator(mode="after")
     def _check(self) -> GateRule:
         if not is_known_metric(self.metric):
@@ -449,6 +472,15 @@ class GateRule(_Strict):
             v = getattr(self, name)
             if v is not None and v < 0:
                 raise ValueError(f"{name} must be >= 0")
+        if self.metric in HIGHER_IS_BETTER or is_rate_metric(self.metric):
+            # Rates are fractions: 0.85 means 85%, and max_drop 0.02 means 2 points (D-12).
+            for name in ("floor", "max", "max_drop", "max_rise"):
+                v = getattr(self, name)
+                if v is not None and not 0 <= v <= 1:
+                    raise ValueError(
+                        f"{self.label}: {name} {v:g} must be between 0 and 1 (a fraction: 0.85 = 85%, "
+                        "0.02 = 2 points)"
+                    )
         return self
 
     @property
