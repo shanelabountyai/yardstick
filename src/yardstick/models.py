@@ -21,6 +21,8 @@ RUN_SCHEMA_VERSION = 1
 
 #: Registry name of the LLM-judge scorer (Phase 3).
 LLM_JUDGE = "llm-judge"
+#: Registry name of the label-rate scorer (Phase 2); can be marked judge-derived (D-79).
+LABEL_RATE = "label-rate"
 
 MetricName = Literal[
     "pass_rate",
@@ -100,14 +102,18 @@ class ScorerSpec(_Additive):
 
     ``report_only`` scores are recorded and feed ``rate:<key>`` metrics but never decide an item's pass or
     mean score (D-25).
+
+    ``judge: true`` marks a ``label-rate`` scorer whose labels come from an LLM judge (e.g. Footnote's
+    per-sentence verdicts), so YS-05 governs its ``rate:<key>`` rules like an ``llm-judge`` key's (D-79).
     """
 
-    _omit_if_empty: ClassVar[tuple[str, ...]] = ("report_only",)
+    _omit_if_empty: ClassVar[tuple[str, ...]] = ("report_only", "judge")
 
     name: str
     key: str | None = None
     options: dict[str, Any] = Field(default_factory=dict)
     report_only: bool = False
+    judge: bool = False
 
     @property
     def expected_key(self) -> str:
@@ -149,6 +155,16 @@ class Suite(_Strict):
         if len(keys) != len(set(keys)):
             raise ValueError("scorer keys must be unique; set `key` when a scorer is used twice")
         for spec in self.scorers:
+            if spec.judge and spec.name != LABEL_RATE:
+                raise ValueError(
+                    f"scorer {spec.expected_key!r}: judge: true applies to label-rate scorers only "
+                    "(llm-judge keys are judge-derived already)"
+                )
+            if spec.judge and not spec.report_only:
+                raise ValueError(
+                    f"scorer {spec.expected_key!r}: a judge-derived label-rate must be report_only: true, so "
+                    "an uncalibrated judge never decides an item's pass (YS-05, D-79)"
+                )
             if spec.name == LLM_JUDGE and not spec.report_only:
                 raise ValueError(
                     f"scorer {spec.expected_key!r}: llm-judge scores must be report_only: true; a judge "
@@ -287,12 +303,23 @@ class JudgeRecord(_Strict):
     overrun: bool = False
 
 
+class LabelJudge(_Strict):
+    """The judge behind a judge-derived ``label-rate`` key (``judge: true``), as the target reported it.
+    ``model``/``prompt_hash`` are None when the target did not report them; YS-05 then treats the judge's
+    kappa as unknown (D-79)."""
+
+    model: str | None = None
+    prompt_hash: str | None = None
+    source: str
+
+
 class Run(_Additive):
     """One execution. ``reported_cost_usd`` is a run-level cost the target reported (e.g. Footnote's
     ``spentUsd``); it is used only when items do not all report their own cost (D-27). ``judges`` records each
-    ``llm-judge`` scorer key's judge identity and spend (Phase 3)."""
+    ``llm-judge`` scorer key's judge identity and spend (Phase 3). ``label_judges`` records the judge identity
+    behind each judge-derived ``label-rate`` key (D-79)."""
 
-    _omit_if_empty: ClassVar[tuple[str, ...]] = ("reported_cost_usd", "judges")
+    _omit_if_empty: ClassVar[tuple[str, ...]] = ("reported_cost_usd", "judges", "label_judges")
 
     schema_version: int = RUN_SCHEMA_VERSION
     run_id: str
@@ -306,6 +333,7 @@ class Run(_Additive):
     items: list[ItemResult]
     reported_cost_usd: float | None = None
     judges: dict[str, JudgeRecord] = Field(default_factory=dict)
+    label_judges: dict[str, LabelJudge] = Field(default_factory=dict)
 
     @field_validator("reported_cost_usd")
     @classmethod
@@ -430,11 +458,20 @@ class GateRule(_Strict):
 
 class JudgePolicy(_Strict):
     """YS-05: a ``rate:<key>`` rule over an ``llm-judge`` score gates only when that judge's pooled kappa
-    (from a calibration file matching its model and prompt hash) is at least ``kappa_floor`` (D-06, D-40).
+    (from a calibration file matching its model and prompt hash) is at least ``kappa_floor`` (D-06, D-40) and
+    was computed from at least ``min_graded`` graded units (D-80); a smaller n counts as unknown.
     ``calibrations`` are paths relative to the gate file."""
 
     kappa_floor: float = 0.6
+    min_graded: int = 30
     calibrations: list[str] = Field(default_factory=list)
+
+    @field_validator("min_graded")
+    @classmethod
+    def _min_graded(cls, v: int) -> int:
+        if v < 1:
+            raise ValueError("min_graded must be >= 1")
+        return v
 
     @field_validator("kappa_floor")
     @classmethod

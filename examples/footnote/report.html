@@ -44,15 +44,15 @@ footer { margin-top: 40px; font-size: 0.85rem; color: var(--muted); }
 <h1>Yardstick report: footnote-golden</h1>
 <p><span class="badge fail">Gate failed</span></p>
 <div class="table-wrap"><table>
-<tr><th>Run</th><td><code>sha256:6bc5e6d36736e96b</code></td></tr>
-<tr><th>Suite</th><td><code>footnote-golden</code> (<code>sha256:c6668bc0518e</code>)</td></tr>
+<tr><th>Run</th><td><code>sha256:1cde8bbdfa25947b</code></td></tr>
+<tr><th>Suite</th><td><code>footnote-golden</code> (<code>sha256:76beaa0f0f1d</code>)</td></tr>
 <tr><th>Target</th><td><code>footnote-dense-sonnet-theta-off</code> (results-file)</td></tr>
 <tr><th>Model</th><td>claude-sonnet-5-5</td></tr>
 <tr><th>Prompt hash</th><td>not reported</td></tr>
 <tr><th>Git SHA</th><td>not reported</td></tr>
 <tr><th>Started</th><td>2026-11-14T00:00:00Z</td></tr>
 <tr><th>Items</th><td>41 (0 target errors)</td></tr>
-<tr><th>Baseline</th><td><code>sha256:082261b0ce16f968</code> (<code>footnote-hybrid-sonnet-theta-on</code>)</td></tr>
+<tr><th>Baseline</th><td><code>sha256:fb3406ee2e01bde2</code> (<code>footnote-hybrid-sonnet-theta-on</code>)</td></tr>
 </table></div>
 
 <h2>Summary</h2>
@@ -171,7 +171,7 @@ footer { margin-top: 40px; font-size: 0.85rem; color: var(--muted); }
 <tr><th>Rule</th><th>Current</th><th>Baseline</th><th>Items</th><th>Checks</th><th>Result</th></tr>
 <tr><td><code>rate:refusal[A+M]</code></td><td class="num">86.4%</td><td class="num">63.6%</td><td class="num">22 / min 8</td><td>min_items: 22 item(s), need &gt;= 8 (ok); floor: 86.4% &gt;= 90.0% (FAIL); max_drop: drop −22.7 pt &lt;= 2.0 pt (ok)</td><td><span class="fail-text">FAIL</span></td></tr>
 <tr><td><code>pass_rate[U]</code></td><td class="num">87.5%</td><td class="num">87.5%</td><td class="num">8 / min 8</td><td>min_items: 8 item(s), need &gt;= 8 (ok); floor: 87.5% &gt;= 90.0% (FAIL)</td><td><span class="fail-text">FAIL</span></td></tr>
-<tr><td><code>rate:support[A+M+V]</code></td><td class="num">not reported</td><td class="num">96.1%</td><td class="num">0 / min 8</td><td>min_items: 0 item(s), need &gt;= 8 (FAIL); reported: rate:support[A+M+V] not reported (FAIL)</td><td><span class="fail-text">FAIL</span></td></tr>
+<tr><td><code>rate:support[A+M+V]</code></td><td class="num">not reported</td><td class="num">96.1%</td><td class="num">0 / min 8</td><td>min_items: 0 item(s), need &gt;= 8 (FAIL); reported: rate:support[A+M+V] not reported (FAIL); report-only (YS-05): judge behind &#39;support&#39; not reported by the target, kappa unknown</td><td>report-only: fail</td></tr>
 </table></div>
 
 <h2>Item changes vs baseline</h2>

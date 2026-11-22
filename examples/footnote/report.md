@@ -4,15 +4,15 @@
 
 | | |
 |---|---|
-| Run | `sha256:6bc5e6d36736e96b` |
-| Suite | `footnote-golden` (`sha256:c6668bc0518e`) |
+| Run | `sha256:1cde8bbdfa25947b` |
+| Suite | `footnote-golden` (`sha256:76beaa0f0f1d`) |
 | Target | `footnote-dense-sonnet-theta-off` (results-file) |
 | Model | claude-sonnet-5-5 |
 | Prompt hash | not reported |
 | Git SHA | not reported |
 | Started | 2026-11-14T00:00:00Z |
 | Items | 41 (0 target errors) |
-| Baseline | `sha256:082261b0ce16f968` |
+| Baseline | `sha256:fb3406ee2e01bde2` |
 
 ## Summary
 
@@ -81,7 +81,7 @@ Per scorer: hits / total over the items it applied to. Report-only scorers never
 |---|---|---|---|---|---|
 | `rate:refusal[A+M]` | 86.4% | 63.6% | 22 / min 8 | min_items: 22 item(s), need >= 8 (ok); floor: 86.4% >= 90.0% (FAIL); max_drop: drop −22.7 pt <= 2.0 pt (ok) | **FAIL** |
 | `pass_rate[U]` | 87.5% | 87.5% | 8 / min 8 | min_items: 8 item(s), need >= 8 (ok); floor: 87.5% >= 90.0% (FAIL) | **FAIL** |
-| `rate:support[A+M+V]` | not reported | 96.1% | 0 / min 8 | min_items: 0 item(s), need >= 8 (FAIL); reported: rate:support[A+M+V] not reported (FAIL) | **FAIL** |
+| `rate:support[A+M+V]` | not reported | 96.1% | 0 / min 8 | min_items: 0 item(s), need >= 8 (FAIL); reported: rate:support[A+M+V] not reported (FAIL); report-only (YS-05): judge behind 'support' not reported by the target, kappa unknown | report-only: fail |
 
 ## Item changes vs baseline
 

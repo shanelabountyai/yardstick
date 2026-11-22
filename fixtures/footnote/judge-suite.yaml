@@ -25,6 +25,7 @@ scorers:
     exclude:
     - schema_invalid
   report_only: true
+  judge: true
 - name: llm-judge
   key: judge
   options:

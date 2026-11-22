@@ -1,5 +1,11 @@
 # Gate over the footnote-golden suite, using Footnote's own scorecard targets (eval:scorecard "Target" column).
+# YS-05 (D-79): `support` counts the sentence judge's verdicts, so its rule gates only if that judge's pooled
+# kappa against Shane's grades is >= kappa_floor. Footnote's Opus judge has kappa 0.17 (n 40): report-only.
 min_items: 8
+judge:
+  kappa_floor: 0.6
+  calibrations:
+    - ../footnote/judge/calibration-opus-1646.json
 rules:
   # Answered or partial on answerable questions (A, M) >= 90%, and no more than 2 points below the baseline.
   - metric: rate:refusal
@@ -10,8 +16,8 @@ rules:
   - metric: pass_rate
     slice: U
     floor: 0.90
-  # Sentence support (judge) on A, M, V >= 90%. A cell run without the judge has no verdicts, so this is
-  # "not reported" and the rule fails closed (D-11).
+  # Sentence support (judge) on A, M, V >= 90%: report-only until the judge is calibrated (YS-05). A cell
+  # run without the judge has no verdicts, so this is "not reported" as well.
   - metric: rate:support
     slice: A+M+V
     floor: 0.90

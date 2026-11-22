@@ -23,6 +23,9 @@ class RunMeta:
 
     model: str | None = None
     cost_usd: float | None = None
+    #: The judge behind judge-derived label fields, if the target reports it (D-79).
+    judge_model: str | None = None
+    judge_prompt_hash: str | None = None
 
 
 @runtime_checkable

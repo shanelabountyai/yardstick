@@ -3,10 +3,11 @@
 A rule fails closed: missing baseline for a ``max_drop``/``max_rise`` check, a metric that is not reported,
 or fewer items than ``min_items`` all fail the rule (YS-02).
 
-YS-05 (Phase 3, D-40): a rule on ``rate:<key>`` where ``<key>`` is an ``llm-judge`` score gates only when
-a calibration for that judge (same model and prompt hash) has a pooled kappa at or above the gate's
-``judge.kappa_floor``. Otherwise it is still evaluated and shown, marked report-only with the reason, and
-never changes the verdict. A gate with no gating rule left fails closed (D-11).
+YS-05 (Phase 3, D-40): a rule on ``rate:<key>`` where ``<key>`` is an ``llm-judge`` score, or a
+``label-rate`` score marked ``judge: true`` (D-79), gates only when a calibration for that judge (same model
+and prompt hash) has a pooled kappa at or above the gate's ``judge.kappa_floor``, computed from at least
+``judge.min_graded`` graded units (D-80). Otherwise it is still evaluated and shown, marked report-only with
+the reason, and never changes the verdict. A gate with no gating rule left fails closed (D-11).
 """
 
 from __future__ import annotations
@@ -93,8 +94,9 @@ def evaluate_rule(
 
 
 def judge_keys(run: Run) -> set[str]:
-    """Scorer keys in a run that come from an ``llm-judge`` scorer."""
-    keys = set(run.judges)
+    """Scorer keys in a run that come from a judge: ``llm-judge`` scorers, and ``label-rate`` scorers marked
+    ``judge: true`` (D-79)."""
+    keys = set(run.judges) | set(run.label_judges)
     for item in run.items:
         keys.update(s.key for s in item.scores if s.scorer == LLM_JUDGE)
     return keys
@@ -106,10 +108,17 @@ def judge_status(
     """``(gating, note)`` for a judge metric under YS-05."""
     floor = policy.kappa_floor
     rec = run.judges.get(key)
-    if rec is None:
+    lj = run.label_judges.get(key)
+    if rec is not None:
+        model, phash = rec.model, rec.prompt_hash
+    elif lj is not None and lj.model is not None and lj.prompt_hash is not None:
+        model, phash = lj.model, lj.prompt_hash
+    elif lj is not None:
+        return False, f"report-only (YS-05): judge behind {key!r} not reported by the target, kappa unknown"
+    else:
         return False, f"report-only (YS-05): judge for {key!r} not recorded in the run, kappa unknown"
-    who = f"{rec.model} prompt {rec.prompt_hash}"
-    found = [c for c in calibrations if c.matches(rec.model, rec.prompt_hash)]
+    who = f"{model} prompt {phash}"
+    found = [c for c in calibrations if c.matches(model, phash)]
     if not found:
         return False, f"report-only (YS-05): no calibration for {who}, kappa unknown"
     if len(found) > 1:
@@ -117,6 +126,12 @@ def judge_status(
     pooled = found[0].pooled
     if pooled.kappa is None:
         return False, f"report-only (YS-05): kappa undefined for {who} (n {pooled.n})"
+    if pooled.n < policy.min_graded:
+        return (
+            False,
+            f"report-only (YS-05): judge kappa {js_fixed(pooled.kappa, 2)} from n {pooled.n} graded units "
+            f"< min_graded {policy.min_graded}, treated as unknown",
+        )
     if round(pooled.kappa, 6) < round(floor, 6):
         return (
             False,

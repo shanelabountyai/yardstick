@@ -6,7 +6,17 @@ from collections.abc import Mapping
 
 from yardstick.adapters.base import Adapter, ReportsRunMeta, RunMeta
 from yardstick.clock import Clock, SystemClock
-from yardstick.models import LLM_JUDGE, Item, ItemResult, Output, Run, Score, Suite, TargetInfo
+from yardstick.models import (
+    LLM_JUDGE,
+    Item,
+    ItemResult,
+    LabelJudge,
+    Output,
+    Run,
+    Score,
+    Suite,
+    TargetInfo,
+)
 from yardstick.scorers import ScorerConfigError, get_scorer
 from yardstick.scorers.llm_judge import JudgeSession
 
@@ -85,13 +95,27 @@ def build_run(
     git_sha: str | None = None,
     reported_cost_usd: float | None = None,
     judge: JudgeSession | None = None,
+    label_judge: RunMeta | None = None,
 ) -> Run:
+    """``label_judge`` is the run-level meta whose ``judge_model``/``judge_prompt_hash`` identify the judge
+    behind judge-derived ``label-rate`` keys (D-79); without it their identity is recorded as unknown."""
     clock = clock or SystemClock()
     started = clock.now().isoformat().replace("+00:00", "Z")
     results = [
         score_item(suite, item, outputs.get(item.id, Output(error=NO_OUTPUT)), judge) for item in suite.items
     ]
     judges = judge.records() if judge is not None else {}
+    meta = label_judge or RunMeta()
+    reported = meta.judge_model is not None and meta.judge_prompt_hash is not None
+    label_judges = {
+        spec.expected_key: LabelJudge(
+            model=meta.judge_model if reported else None,
+            prompt_hash=meta.judge_prompt_hash if reported else None,
+            source=f"reported by target {target.name!r}" if reported else "not reported by the target",
+        )
+        for spec in suite.scorers
+        if spec.judge
+    }
     payload = {
         "schema_version": 1,
         "suite_name": suite.name,
@@ -107,6 +131,8 @@ def build_run(
         payload["reported_cost_usd"] = cost
     if judges:
         payload["judges"] = {k: v.model_dump(mode="json") for k, v in judges.items()}
+    if label_judges:
+        payload["label_judges"] = {k: v.model_dump(mode="json") for k, v in sorted(label_judges.items())}
     return Run(
         run_id=Run.compute_id(payload),
         started_at=started,
@@ -119,6 +145,7 @@ def build_run(
         git_sha=git_sha,
         reported_cost_usd=cost,
         judges=judges,
+        label_judges=dict(sorted(label_judges.items())),
     )
 
 
@@ -144,4 +171,5 @@ def run_suite(
         git_sha=git_sha,
         reported_cost_usd=meta.cost_usd,
         judge=judge,
+        label_judge=meta,
     )

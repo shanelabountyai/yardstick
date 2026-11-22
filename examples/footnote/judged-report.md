@@ -4,8 +4,8 @@
 
 | | |
 |---|---|
-| Run | `sha256:64fa2324dc9fde69` |
-| Suite | `footnote-golden-judged` (`sha256:0da245413c97`) |
+| Run | `sha256:50de6cd321b9d228` |
+| Suite | `footnote-golden-judged` (`sha256:9f0f55fdea7d`) |
 | Target | `footnote-hybrid-sonnet-theta-on` (results-file) |
 | Model | claude-sonnet-5-5 |
 | Prompt hash | not reported |

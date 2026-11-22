@@ -2,14 +2,16 @@
 
 Row fields used: ``id``, ``slice``, ``status`` (answered / partial / refused), ``refusal`` (code or null),
 ``gate.score`` (top dense cosine; null for fts), ``verdicts`` (judge label per sentence). File level:
-``model``, ``spentUsd``. Mapped to:
+``model``, ``spentUsd``, and on judged files ``judge`` and ``judgePromptHash``. Mapped to:
 
 - ``refused`` = ``status == "refused"`` (so "answered or partial" = not refused, as in Footnote's scorecard);
 - fields ``status``, ``refusal_code``, ``gate_score``, ``verdicts`` and the derived ``pre_call`` = refused
   with ``NO_RELEVANT_PASSAGE``, the only code Footnote emits before a model call (its
   ``noRelevantPassage()``, D-28);
 - run model and run-level cost (``spentUsd``; Footnote reports no per-item cost or latency, so those stay
-  "not reported").
+  "not reported");
+- the judge identity behind ``verdicts`` (``judge``, ``judgePromptHash``), recorded for the judge-derived
+  ``support`` key so YS-05 applies to it (D-79).
 
 ``theta_prime`` replays Footnote's scorecard ``atTheta``: a row whose stored gate score is below theta'
 becomes a pre-call ``NO_RELEVANT_PASSAGE`` refusal with no sentences; rows without a score (fts) never change.
@@ -41,6 +43,8 @@ FOOTNOTE_MAPPING = ResultsMapping(
     },
     model="model",
     run_cost_usd="spentUsd",
+    judge_model="judge",
+    judge_prompt_hash="judgePromptHash",
 )
 
 SUITE_NAME = "footnote-golden"
@@ -67,6 +71,7 @@ SCORERS = [
         name="label-rate",
         key="support",
         report_only=True,
+        judge=True,  # the verdicts are Footnote's sentence judge's labels: YS-05 applies (D-79)
         options={"field": "verdicts", "positive": ["supported"], "exclude": ["schema_invalid"]},
     ),
 ]
