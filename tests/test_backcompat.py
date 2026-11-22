@@ -15,6 +15,12 @@ from yardstick.suite_io import load_suite, run_to_json
 NEW_KEYS = {"fields", "hits", "total", "report_only", "reported_cost_usd", "labels", "judges"}
 
 
+#: Pinned literals (D-24 "byte-identical (tested)"): a change to hashing, to the suite format or to the run
+#: payload shows up here, not only in the regenerated examples.
+SUPPORT_BOT_SUITE_HASH = "sha256:1f333f1cc5e37aceee91aac48e4bb817a846af19bc5d957099d695a1acffb10a"
+PHASE1_STYLE_RUN_ID = "sha256:00213b54bbd994c1"
+
+
 def _keys(value: object) -> set[str]:
     if isinstance(value, dict):
         return set(value) | {k for v in value.values() for k in _keys(v)}
@@ -26,12 +32,14 @@ def _keys(value: object) -> set[str]:
 def test_phase1_style_runs_carry_no_new_keys() -> None:
     run = run_from_passes([True, False, True], latency=[1, 2, 3], cost=[0.1, 0.2, 0.3])
     assert not (_keys(json.loads(run_to_json(run))) & NEW_KEYS)
+    assert run.run_id == PHASE1_STYLE_RUN_ID
 
 
 def test_report_only_false_does_not_change_suite_hash() -> None:
     suite = load_suite(SUITES / "support-bot.yaml")
     assert ScorerSpec(name="exact").model_dump() == {"name": "exact", "key": None, "options": {}}
-    assert suite.content_hash == load_suite(SUITES / "support-bot.yaml").content_hash
+    # Literal pin (review item 1): the hash committed in examples/report-example.md since Phase 1.
+    assert suite.content_hash == SUPPORT_BOT_SUITE_HASH
     assert "report_only" not in json.dumps([s.model_dump(mode="json") for s in suite.scorers])
 
 
