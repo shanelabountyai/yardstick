@@ -8,72 +8,72 @@ Source: shanelabountyai/footnote @ 3c9b0c7 (eval/results, eval/golden.json). Yar
 
 | Metric | Cell | Scorecard | Yardstick | Result |
 |---|---|---|---|---|
-| Citation verbatim | fts+haiku θ on | 43/43 (100%) citations | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
-| Expected passage cited (A, M) | fts+haiku θ on | 8/22 (36%) | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
+| Citation verbatim | fts+haiku θ on | 43/43 (100%) citations | — | not reproducible [1] |
+| Expected passage cited (A, M) | fts+haiku θ on | 8/22 (36%) | — | not reproducible [1] |
 | Answered or partial (A, M) | fts+haiku θ on | 11/22 (50%) | 11/22 (50%) | match |
 | Refused before the model, by cause (A, M) | fts+haiku θ on | pre-call 9 | pre-call 9 | match |
-| Refused schema_invalid / by model (A, M) | fts+haiku θ on | schema_invalid 1, model 1 | — | not reproducible: schema_invalid vs model refusals come from ModelCall rows, not in the answers files |
+| Refused schema_invalid / by model (A, M) | fts+haiku θ on | schema_invalid 1, model 1 | — | not reproducible [2] |
 | Refusal on unanswerable (U) | fts+haiku θ on | 8/8 (100%); false answers none; code mismatch none | 8/8 (100%); false answers none; code mismatch none | match |
 | Refused before any model call (U) | fts+haiku θ on | 7/8 (88%) | 7/8 (88%) | match |
-| Edition labeled (V answered) | fts+haiku θ on | 5/5 (100%) | ?/5 | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows); Yardstick shows the denominator (V answered) only |
+| Edition labeled (V answered) | fts+haiku θ on | 5/5 (100%) | ?/5 | not reproducible [3] |
 | Outcome as expected (P) | fts+haiku θ on | 3/5 (60%) — GP-02 refused (pre-call), GP-05 refused (pre-call) | 3/5 (60%) — GP-02 refused (pre-call), GP-05 refused (pre-call) | match |
 | Split (all) | fts+haiku θ on | answered 18 / partial 0 / refused 23 of 41 | answered 18 / partial 0 / refused 23 of 41 | match |
-| Split: schema_invalid answer calls | fts+haiku θ on | schema_invalid 1 | — | not reproducible: schema_invalid vs model refusals come from ModelCall rows, not in the answers files |
-| Citation verbatim | fts+sonnet θ on | 52/52 (100%) citations | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
-| Expected passage cited (A, M) | fts+sonnet θ on | 9/22 (41%) | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
+| Split: schema_invalid answer calls | fts+haiku θ on | schema_invalid 1 | — | not reproducible [2] |
+| Citation verbatim | fts+sonnet θ on | 52/52 (100%) citations | — | not reproducible [1] |
+| Expected passage cited (A, M) | fts+sonnet θ on | 9/22 (41%) | — | not reproducible [1] |
 | Answered or partial (A, M) | fts+sonnet θ on | 12/22 (55%) | 12/22 (55%) | match |
 | Refused before the model, by cause (A, M) | fts+sonnet θ on | pre-call 9 | pre-call 9 | match |
-| Refused schema_invalid / by model (A, M) | fts+sonnet θ on | schema_invalid 0, model 1 | — | not reproducible: schema_invalid vs model refusals come from ModelCall rows, not in the answers files |
+| Refused schema_invalid / by model (A, M) | fts+sonnet θ on | schema_invalid 0, model 1 | — | not reproducible [2] |
 | Refusal on unanswerable (U) | fts+sonnet θ on | 7/8 (88%); false answers — GU-03; code mismatch none | 7/8 (88%); false answers — GU-03; code mismatch none | match |
 | Refused before any model call (U) | fts+sonnet θ on | 7/8 (88%) | 7/8 (88%) | match |
-| Edition labeled (V answered) | fts+sonnet θ on | 5/5 (100%) | ?/5 | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows); Yardstick shows the denominator (V answered) only |
+| Edition labeled (V answered) | fts+sonnet θ on | 5/5 (100%) | ?/5 | not reproducible [3] |
 | Outcome as expected (P) | fts+sonnet θ on | 3/5 (60%) — GP-02 refused (pre-call), GP-05 refused (pre-call) | 3/5 (60%) — GP-02 refused (pre-call), GP-05 refused (pre-call) | match |
 | Split (all) | fts+sonnet θ on | answered 18 / partial 0 / refused 23 of 41 | answered 18 / partial 0 / refused 23 of 41 | match |
-| Split: schema_invalid answer calls | fts+sonnet θ on | schema_invalid 1 | — | not reproducible: schema_invalid vs model refusals come from ModelCall rows, not in the answers files |
-| Citation verbatim | dense+haiku θ off | 66/66 (100%) citations | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
-| Expected passage cited (A, M) | dense+haiku θ off | 14/22 (64%) | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
+| Split: schema_invalid answer calls | fts+sonnet θ on | schema_invalid 1 | — | not reproducible [2] |
+| Citation verbatim | dense+haiku θ off | 66/66 (100%) citations | — | not reproducible [1] |
+| Expected passage cited (A, M) | dense+haiku θ off | 14/22 (64%) | — | not reproducible [1] |
 | Answered or partial (A, M) | dense+haiku θ off | 16/22 (73%) | 16/22 (73%) | match |
 | Refused before the model, by cause (A, M) | dense+haiku θ off | pre-call 0 | pre-call 0 | match |
-| Refused schema_invalid / by model (A, M) | dense+haiku θ off | schema_invalid 6, model 0 | — | not reproducible: schema_invalid vs model refusals come from ModelCall rows, not in the answers files |
+| Refused schema_invalid / by model (A, M) | dense+haiku θ off | schema_invalid 6, model 0 | — | not reproducible [2] |
 | Refusal on unanswerable (U) | dense+haiku θ off | 7/8 (88%); false answers — GU-08; code mismatch — GU-01 INSUFFICIENT_SUPPORT, GU-02 INSUFFICIENT_SUPPORT, GU-04 INSUFFICIENT_SUPPORT, GU-05 INSUFFICIENT_SUPPORT, GU-06 INSUFFICIENT_SUPPORT, GU-07 INSUFFICIENT_SUPPORT | 7/8 (88%); false answers — GU-08; code mismatch — GU-01 INSUFFICIENT_SUPPORT, GU-02 INSUFFICIENT_SUPPORT, GU-04 INSUFFICIENT_SUPPORT, GU-05 INSUFFICIENT_SUPPORT, GU-06 INSUFFICIENT_SUPPORT, GU-07 INSUFFICIENT_SUPPORT | match |
 | Refused before any model call (U) | dense+haiku θ off | 0/8 (0%) | 0/8 (0%) | match |
-| Edition labeled (V answered) | dense+haiku θ off | 6/6 (100%) | ?/6 | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows); Yardstick shows the denominator (V answered) only |
+| Edition labeled (V answered) | dense+haiku θ off | 6/6 (100%) | ?/6 | not reproducible [3] |
 | Outcome as expected (P) | dense+haiku θ off | 5/5 (100%) | 5/5 (100%) | match |
 | Split (all) | dense+haiku θ off | answered 27 / partial 0 / refused 14 of 41 | answered 27 / partial 0 / refused 14 of 41 | match |
-| Split: schema_invalid answer calls | dense+haiku θ off | schema_invalid 6 | — | not reproducible: schema_invalid vs model refusals come from ModelCall rows, not in the answers files |
-| Citation verbatim | dense+sonnet θ off | 76/76 (100%) citations | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
-| Expected passage cited (A, M) | dense+sonnet θ off | 17/22 (77%) | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
+| Split: schema_invalid answer calls | dense+haiku θ off | schema_invalid 6 | — | not reproducible [2] |
+| Citation verbatim | dense+sonnet θ off | 76/76 (100%) citations | — | not reproducible [1] |
+| Expected passage cited (A, M) | dense+sonnet θ off | 17/22 (77%) | — | not reproducible [1] |
 | Answered or partial (A, M) | dense+sonnet θ off | 19/22 (86%) | 19/22 (86%) | match |
 | Refused before the model, by cause (A, M) | dense+sonnet θ off | pre-call 0 | pre-call 0 | match |
-| Refused schema_invalid / by model (A, M) | dense+sonnet θ off | schema_invalid 3, model 0 | — | not reproducible: schema_invalid vs model refusals come from ModelCall rows, not in the answers files |
+| Refused schema_invalid / by model (A, M) | dense+sonnet θ off | schema_invalid 3, model 0 | — | not reproducible [2] |
 | Refusal on unanswerable (U) | dense+sonnet θ off | 7/8 (88%); false answers — GU-03; code mismatch — GU-01 INSUFFICIENT_SUPPORT, GU-02 INSUFFICIENT_SUPPORT, GU-04 INSUFFICIENT_SUPPORT, GU-05 INSUFFICIENT_SUPPORT, GU-06 INSUFFICIENT_SUPPORT, GU-07 INSUFFICIENT_SUPPORT, GU-08 INSUFFICIENT_SUPPORT | 7/8 (88%); false answers — GU-03; code mismatch — GU-01 INSUFFICIENT_SUPPORT, GU-02 INSUFFICIENT_SUPPORT, GU-04 INSUFFICIENT_SUPPORT, GU-05 INSUFFICIENT_SUPPORT, GU-06 INSUFFICIENT_SUPPORT, GU-07 INSUFFICIENT_SUPPORT, GU-08 INSUFFICIENT_SUPPORT | match |
 | Refused before any model call (U) | dense+sonnet θ off | 0/8 (0%) | 0/8 (0%) | match |
-| Edition labeled (V answered) | dense+sonnet θ off | 6/6 (100%) | ?/6 | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows); Yardstick shows the denominator (V answered) only |
+| Edition labeled (V answered) | dense+sonnet θ off | 6/6 (100%) | ?/6 | not reproducible [3] |
 | Outcome as expected (P) | dense+sonnet θ off | 5/5 (100%) | 5/5 (100%) | match |
 | Split (all) | dense+sonnet θ off | answered 28 / partial 0 / refused 13 of 41 | answered 28 / partial 0 / refused 13 of 41 | match |
-| Split: schema_invalid answer calls | dense+sonnet θ off | schema_invalid 4 | — | not reproducible: schema_invalid vs model refusals come from ModelCall rows, not in the answers files |
-| Citation verbatim | hybrid+haiku θ off | 50/50 (100%) citations | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
-| Expected passage cited (A, M) | hybrid+haiku θ off | 11/22 (50%) | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
+| Split: schema_invalid answer calls | dense+sonnet θ off | schema_invalid 4 | — | not reproducible [2] |
+| Citation verbatim | hybrid+haiku θ off | 50/50 (100%) citations | — | not reproducible [1] |
+| Expected passage cited (A, M) | hybrid+haiku θ off | 11/22 (50%) | — | not reproducible [1] |
 | Answered or partial (A, M) | hybrid+haiku θ off | 13/22 (59%) | 13/22 (59%) | match |
 | Refused before the model, by cause (A, M) | hybrid+haiku θ off | pre-call 0 | pre-call 0 | match |
-| Refused schema_invalid / by model (A, M) | hybrid+haiku θ off | schema_invalid 9, model 0 | — | not reproducible: schema_invalid vs model refusals come from ModelCall rows, not in the answers files |
+| Refused schema_invalid / by model (A, M) | hybrid+haiku θ off | schema_invalid 9, model 0 | — | not reproducible [2] |
 | Refusal on unanswerable (U) | hybrid+haiku θ off | 6/8 (75%); false answers — GU-03, GU-08; code mismatch — GU-01 INSUFFICIENT_SUPPORT, GU-02 INSUFFICIENT_SUPPORT, GU-04 INSUFFICIENT_SUPPORT, GU-05 INSUFFICIENT_SUPPORT, GU-06 INSUFFICIENT_SUPPORT, GU-07 INSUFFICIENT_SUPPORT | 6/8 (75%); false answers — GU-03, GU-08; code mismatch — GU-01 INSUFFICIENT_SUPPORT, GU-02 INSUFFICIENT_SUPPORT, GU-04 INSUFFICIENT_SUPPORT, GU-05 INSUFFICIENT_SUPPORT, GU-06 INSUFFICIENT_SUPPORT, GU-07 INSUFFICIENT_SUPPORT | match |
 | Refused before any model call (U) | hybrid+haiku θ off | 0/8 (0%) | 0/8 (0%) | match |
-| Edition labeled (V answered) | hybrid+haiku θ off | 6/6 (100%) | ?/6 | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows); Yardstick shows the denominator (V answered) only |
+| Edition labeled (V answered) | hybrid+haiku θ off | 6/6 (100%) | ?/6 | not reproducible [3] |
 | Outcome as expected (P) | hybrid+haiku θ off | 5/5 (100%) | 5/5 (100%) | match |
 | Split (all) | hybrid+haiku θ off | answered 23 / partial 0 / refused 18 of 41 | answered 23 / partial 0 / refused 18 of 41 | match |
-| Split: schema_invalid answer calls | hybrid+haiku θ off | schema_invalid 10 | — | not reproducible: schema_invalid vs model refusals come from ModelCall rows, not in the answers files |
-| Citation verbatim | hybrid+sonnet θ on | 55/55 (100%) citations | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
-| Expected passage cited (A, M) | hybrid+sonnet θ on | 13/22 (59%) | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
+| Split: schema_invalid answer calls | hybrid+haiku θ off | schema_invalid 10 | — | not reproducible [2] |
+| Citation verbatim | hybrid+sonnet θ on | 55/55 (100%) citations | — | not reproducible [1] |
+| Expected passage cited (A, M) | hybrid+sonnet θ on | 13/22 (59%) | — | not reproducible [1] |
 | Answered or partial (A, M) | hybrid+sonnet θ on | 14/22 (64%) | 14/22 (64%) | match |
 | Refused before the model, by cause (A, M) | hybrid+sonnet θ on | pre-call 6 | pre-call 6 | match |
-| Refused schema_invalid / by model (A, M) | hybrid+sonnet θ on | schema_invalid 2, model 0 | — | not reproducible: schema_invalid vs model refusals come from ModelCall rows, not in the answers files |
+| Refused schema_invalid / by model (A, M) | hybrid+sonnet θ on | schema_invalid 2, model 0 | — | not reproducible [2] |
 | Refusal on unanswerable (U) | hybrid+sonnet θ on | 7/8 (88%); false answers — GU-03; code mismatch — GU-01 INSUFFICIENT_SUPPORT, GU-05 INSUFFICIENT_SUPPORT | 7/8 (88%); false answers — GU-03; code mismatch — GU-01 INSUFFICIENT_SUPPORT, GU-05 INSUFFICIENT_SUPPORT | match |
 | Refused before any model call (U) | hybrid+sonnet θ on | 6/8 (75%) | 6/8 (75%) | match |
-| Edition labeled (V answered) | hybrid+sonnet θ on | 2/2 (100%) | ?/2 | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows); Yardstick shows the denominator (V answered) only |
+| Edition labeled (V answered) | hybrid+sonnet θ on | 2/2 (100%) | ?/2 | not reproducible [3] |
 | Outcome as expected (P) | hybrid+sonnet θ on | 5/5 (100%) | 5/5 (100%) | match |
 | Split (all) | hybrid+sonnet θ on | answered 19 / partial 0 / refused 22 of 41 | answered 19 / partial 0 / refused 22 of 41 | match |
-| Split: schema_invalid answer calls | hybrid+sonnet θ on | schema_invalid 2 | — | not reproducible: schema_invalid vs model refusals come from ModelCall rows, not in the answers files |
+| Split: schema_invalid answer calls | hybrid+sonnet θ on | schema_invalid 2 | — | not reproducible [2] |
 
 ## Whole build
 
@@ -81,12 +81,12 @@ Source: shanelabountyai/footnote @ 3c9b0c7 (eval/results, eval/golden.json). Yar
 |---|---|---|---|---|
 | Sentence support (judge), A, M, V | hybrid+sonnet θ on | 49/51 (96%) | 49/51 (96%) | match |
 | Sentence support: schema_invalid verdicts | hybrid+sonnet θ on | schema_invalid 0 | schema_invalid 0 | match |
-| V edition stated by judge | hybrid+sonnet θ on | V edition stated by judge 4/4 (100%) | — | not reproducible: editionStated is in SentenceJudgment rows, not in the answers files |
-| Tier leaks | whole build | 0 of 342 citations; PT-1 front_desk NO_RELEVANT_PASSAGE, audit PERMISSION_SCOPED_MISS | — | not reproducible: re-reads cited chunks from the database and the pt-injection result file |
-| Planted fabrication caught | whole build | 25/25 (100%), controls condemned 0/6 → PASS | — | not reproducible: judge-gate result file, not an answers run |
-| Judge-vs-human κ (Opus, pooled sheets) | whole build | κ 0.17 n 40, raw agreement 83% | — | not reproducible: Phase 3 (kappa from grade sheets and SentenceJudgment rows) |
-| Injection fixtures passed | whole build | 10/10 (100%) | — | not reproducible: pt-injection result file, not an answers run |
-| Build spend | whole build | $2.7874 | — | not reproducible: sums every ModelCall row in the database; the answers files carry per-run spentUsd only |
+| V edition stated by judge | hybrid+sonnet θ on | V edition stated by judge 4/4 (100%) | — | not reproducible [4] |
+| Tier leaks | whole build | 0 of 342 citations; PT-1 front_desk NO_RELEVANT_PASSAGE, audit PERMISSION_SCOPED_MISS | — | not reproducible [5] |
+| Planted fabrication caught | whole build | 25/25 (100%), controls condemned 0/6 → PASS | — | not reproducible [6] |
+| Judge-vs-human κ (Opus, pooled sheets) | whole build | κ 0.17 n 40, raw agreement 83% | — | not reproducible [7] |
+| Injection fixtures passed | whole build | 10/10 (100%) | — | not reproducible [8] |
+| Build spend | whole build | $2.7874 | — | not reproducible [9] |
 
 ## θ′ axis
 
@@ -95,54 +95,67 @@ Source: shanelabountyai/footnote @ 3c9b0c7 (eval/results, eval/golden.json). Yar
 | U refused | dense+haiku θ off @ off | 7/8 (88%) | 7/8 (88%) | match |
 | U pre-call | dense+haiku θ off @ off | 0/8 (0%) | 0/8 (0%) | match |
 | A, M answered or partial | dense+haiku θ off @ off | 16/22 (73%) | 16/22 (73%) | match |
-| A, M expected cited | dense+haiku θ off @ off | 14/22 (64%) | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
+| A, M expected cited | dense+haiku θ off @ off | 14/22 (64%) | — | not reproducible [1] |
 | U refused | dense+haiku θ off @ 0.52 | 7/8 (88%) | 7/8 (88%) | match |
 | U pre-call | dense+haiku θ off @ 0.52 | 4/8 (50%) | 4/8 (50%) | match |
 | A, M answered or partial | dense+haiku θ off @ 0.52 | 15/22 (68%) | 15/22 (68%) | match |
-| A, M expected cited | dense+haiku θ off @ 0.52 | 13/22 (59%) | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
+| A, M expected cited | dense+haiku θ off @ 0.52 | 13/22 (59%) | — | not reproducible [1] |
 | U refused | dense+haiku θ off @ 0.559 | 7/8 (88%) | 7/8 (88%) | match |
 | U pre-call | dense+haiku θ off @ 0.559 | 6/8 (75%) | 6/8 (75%) | match |
 | A, M answered or partial | dense+haiku θ off @ 0.559 | 13/22 (59%) | 13/22 (59%) | match |
-| A, M expected cited | dense+haiku θ off @ 0.559 | 11/22 (50%) | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
+| A, M expected cited | dense+haiku θ off @ 0.559 | 11/22 (50%) | — | not reproducible [1] |
 | U refused | dense+haiku θ off @ 0.58 | 7/8 (88%) | 7/8 (88%) | match |
 | U pre-call | dense+haiku θ off @ 0.58 | 6/8 (75%) | 6/8 (75%) | match |
 | A, M answered or partial | dense+haiku θ off @ 0.58 | 12/22 (55%) | 12/22 (55%) | match |
-| A, M expected cited | dense+haiku θ off @ 0.58 | 10/22 (45%) | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
+| A, M expected cited | dense+haiku θ off @ 0.58 | 10/22 (45%) | — | not reproducible [1] |
 | U refused | dense+sonnet θ off @ off | 7/8 (88%) | 7/8 (88%) | match |
 | U pre-call | dense+sonnet θ off @ off | 0/8 (0%) | 0/8 (0%) | match |
 | A, M answered or partial | dense+sonnet θ off @ off | 19/22 (86%) | 19/22 (86%) | match |
-| A, M expected cited | dense+sonnet θ off @ off | 17/22 (77%) | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
+| A, M expected cited | dense+sonnet θ off @ off | 17/22 (77%) | — | not reproducible [1] |
 | U refused | dense+sonnet θ off @ 0.52 | 7/8 (88%) | 7/8 (88%) | match |
 | U pre-call | dense+sonnet θ off @ 0.52 | 4/8 (50%) | 4/8 (50%) | match |
 | A, M answered or partial | dense+sonnet θ off @ 0.52 | 17/22 (77%) | 17/22 (77%) | match |
-| A, M expected cited | dense+sonnet θ off @ 0.52 | 15/22 (68%) | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
+| A, M expected cited | dense+sonnet θ off @ 0.52 | 15/22 (68%) | — | not reproducible [1] |
 | U refused | dense+sonnet θ off @ 0.559 | 7/8 (88%) | 7/8 (88%) | match |
 | U pre-call | dense+sonnet θ off @ 0.559 | 6/8 (75%) | 6/8 (75%) | match |
 | A, M answered or partial | dense+sonnet θ off @ 0.559 | 13/22 (59%) | 13/22 (59%) | match |
-| A, M expected cited | dense+sonnet θ off @ 0.559 | 12/22 (55%) | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
+| A, M expected cited | dense+sonnet θ off @ 0.559 | 12/22 (55%) | — | not reproducible [1] |
 | U refused | dense+sonnet θ off @ 0.58 | 7/8 (88%) | 7/8 (88%) | match |
 | U pre-call | dense+sonnet θ off @ 0.58 | 6/8 (75%) | 6/8 (75%) | match |
 | A, M answered or partial | dense+sonnet θ off @ 0.58 | 12/22 (55%) | 12/22 (55%) | match |
-| A, M expected cited | dense+sonnet θ off @ 0.58 | 11/22 (50%) | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
+| A, M expected cited | dense+sonnet θ off @ 0.58 | 11/22 (50%) | — | not reproducible [1] |
 | U refused | hybrid+haiku θ off @ off | 6/8 (75%) | 6/8 (75%) | match |
 | U pre-call | hybrid+haiku θ off @ off | 0/8 (0%) | 0/8 (0%) | match |
 | A, M answered or partial | hybrid+haiku θ off @ off | 13/22 (59%) | 13/22 (59%) | match |
-| A, M expected cited | hybrid+haiku θ off @ off | 11/22 (50%) | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
+| A, M expected cited | hybrid+haiku θ off @ off | 11/22 (50%) | — | not reproducible [1] |
 | U refused | hybrid+haiku θ off @ 0.52 | 6/8 (75%) | 6/8 (75%) | match |
 | U pre-call | hybrid+haiku θ off @ 0.52 | 4/8 (50%) | 4/8 (50%) | match |
 | A, M answered or partial | hybrid+haiku θ off @ 0.52 | 11/22 (50%) | 11/22 (50%) | match |
-| A, M expected cited | hybrid+haiku θ off @ 0.52 | 9/22 (41%) | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
+| A, M expected cited | hybrid+haiku θ off @ 0.52 | 9/22 (41%) | — | not reproducible [1] |
 | U refused | hybrid+haiku θ off @ 0.559 | 7/8 (88%) | 7/8 (88%) | match |
 | U pre-call | hybrid+haiku θ off @ 0.559 | 6/8 (75%) | 6/8 (75%) | match |
 | A, M answered or partial | hybrid+haiku θ off @ 0.559 | 7/22 (32%) | 7/22 (32%) | match |
-| A, M expected cited | hybrid+haiku θ off @ 0.559 | 6/22 (27%) | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
+| A, M expected cited | hybrid+haiku θ off @ 0.559 | 6/22 (27%) | — | not reproducible [1] |
 | U refused | hybrid+haiku θ off @ 0.58 | 7/8 (88%) | 7/8 (88%) | match |
 | U pre-call | hybrid+haiku θ off @ 0.58 | 6/8 (75%) | 6/8 (75%) | match |
 | A, M answered or partial | hybrid+haiku θ off @ 0.58 | 6/22 (27%) | 6/22 (27%) | match |
-| A, M expected cited | hybrid+haiku θ off @ 0.58 | 5/22 (23%) | — | not reproducible: citations are not in the answers files (the scorecard re-reads stored Answer rows) |
+| A, M expected cited | hybrid+haiku θ off @ 0.58 | 5/22 (23%) | — | not reproducible [1] |
 
 ## Retrieval
 
 | Metric | Cell | Scorecard | Yardstick | Result |
 |---|---|---|---|---|
-| recall@k / MRR table | retrievers | 15 rows | — | not reproducible: retrieval result file, not an answers run (outside the PRD's answers mapping) |
+| recall@k / MRR table | retrievers | 15 rows | — | not reproducible [10] |
+
+## Why not reproducible
+
+1. citations are not in the answers files (the scorecard re-reads stored Answer rows)
+2. schema_invalid vs model refusals come from ModelCall rows, not in the answers files
+3. citations are not in the answers files (the scorecard re-reads stored Answer rows); Yardstick shows the denominator (V answered) only
+4. editionStated is in SentenceJudgment rows, not in the answers files
+5. re-reads cited chunks from the database and the pt-injection result file
+6. judge-gate result file, not an answers run
+7. Phase 3 (kappa from grade sheets and SentenceJudgment rows)
+8. pt-injection result file, not an answers run
+9. sums every ModelCall row in the database; the answers files carry per-run spentUsd only
+10. retrieval result file, not an answers run (outside the PRD's answers mapping)

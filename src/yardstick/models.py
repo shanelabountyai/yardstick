@@ -142,11 +142,22 @@ class Item(_Strict):
         return v
 
 
-class Suite(_Strict):
+class Descriptions(_Strict):
+    """Plain-words labels for scorer keys and slices, shown as a "Key" in reports (decision 5 (b), D-89).
+    Like ``Suite.description`` they are not part of the suite hash, so editing them moves nothing."""
+
+    scorers: dict[str, str] = Field(default_factory=dict)
+    slices: dict[str, str] = Field(default_factory=dict)
+
+
+class Suite(_Additive):
+    _omit_if_empty: ClassVar[tuple[str, ...]] = ("descriptions",)
+
     name: str
     description: str = ""
     scorers: list[ScorerSpec]
     items: list[Item]
+    descriptions: Descriptions | None = None
 
     @model_validator(mode="after")
     def _check(self) -> Suite:
@@ -346,9 +357,15 @@ class Run(_Additive):
     """One execution. ``reported_cost_usd`` is a run-level cost the target reported (e.g. Footnote's
     ``spentUsd``); it is used only when items do not all report their own cost (D-27). ``judges`` records each
     ``llm-judge`` scorer key's judge identity and spend (Phase 3). ``label_judges`` records the judge identity
-    behind each judge-derived ``label-rate`` key (D-79)."""
+    behind each judge-derived ``label-rate`` key (D-79). ``descriptions`` carries the suite's labels for the
+    report's Key; it is left out of the run id (D-89)."""
 
-    _omit_if_empty: ClassVar[tuple[str, ...]] = ("reported_cost_usd", "judges", "label_judges")
+    _omit_if_empty: ClassVar[tuple[str, ...]] = (
+        "reported_cost_usd",
+        "judges",
+        "label_judges",
+        "descriptions",
+    )
 
     schema_version: int = RUN_SCHEMA_VERSION
     run_id: str
@@ -363,6 +380,7 @@ class Run(_Additive):
     reported_cost_usd: float | None = None
     judges: dict[str, JudgeRecord] = Field(default_factory=dict)
     label_judges: dict[str, LabelJudge] = Field(default_factory=dict)
+    descriptions: Descriptions | None = None
 
     @field_validator("reported_cost_usd")
     @classmethod
@@ -375,8 +393,8 @@ class Run(_Additive):
 
     @staticmethod
     def compute_id(payload: dict[str, Any]) -> str:
-        """Run id = hash of the run's content excluding ``run_id`` and ``started_at``."""
-        body = {k: v for k, v in payload.items() if k not in {"run_id", "started_at"}}
+        """Run id = hash of the run's content excluding ``run_id``, ``started_at`` and ``descriptions``."""
+        body = {k: v for k, v in payload.items() if k not in {"run_id", "started_at", "descriptions"}}
         return content_hash(body)[: len("sha256:") + 16]
 
 

@@ -43,7 +43,7 @@ def _hostile_run() -> tuple[str, str]:
 
 def test_hostile_strings_do_not_survive_in_markdown() -> None:
     md, _ = _hostile_run()
-    for bad in ("@octocat", "<img", "[click](https", "<!--", "<details>", "\r", "**bold**"):
+    for bad in ("@octocat", "<img", "[click](https", "<!--", "<details> <", "\r", "**bold**"):
         assert bad not in md, bad
     # exactly one verdict line, and it is the real one
     assert [line for line in md.splitlines() if "Gate:" in line and line.startswith("**")] == [

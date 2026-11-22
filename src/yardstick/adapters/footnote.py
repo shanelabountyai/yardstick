@@ -26,7 +26,7 @@ import yaml
 
 from yardstick.adapters.results_file import RefusedRule, ResultsFileAdapter, ResultsMapping
 from yardstick.judge.recorded import VerdictFile
-from yardstick.models import Item, ScorerSpec, Suite
+from yardstick.models import Descriptions, Item, ScorerSpec, Suite
 
 NO_RELEVANT_PASSAGE = "NO_RELEVANT_PASSAGE"
 OUT_OF_SCOPE = "OUT_OF_SCOPE"
@@ -75,6 +75,31 @@ SCORERS = [
         options={"field": "verdicts", "positive": ["supported"], "exclude": ["schema_invalid"]},
     ),
 ]
+
+
+#: The report's Key (decision 5 (b), D-89). The `refusal` key stays as generated (D-23); its label says what a
+#: hit means, because "refusal 86%" otherwise reads as a refusal rate.
+SCORER_DESCRIPTIONS = {
+    "refusal": "hit = the expected outcome: answered or partial where the golden set expects an answer, "
+    "refused where it expects a refusal. On A+M a hit means answered or partial; it is not a refusal rate.",
+    "out-of-scope": "hit = refused with code OUT_OF_SCOPE, on the item that expects it.",
+    "refusal-code": "report-only. hit = refused with the refusal code the golden set expects (U items).",
+    "pre-call": "report-only. hit = refused before any model call (NO_RELEVANT_PASSAGE, D-28).",
+    "support": "report-only, judge-derived. Share of answer sentences Footnote's judge labelled supported "
+    "(schema_invalid left out); it gates only when that judge is calibrated (YS-05).",
+    JUDGE_KEY: "report-only llm-judge. Footnote's committed sentence verdicts, replayed; it gates only when "
+    "the judge is calibrated (YS-05).",
+}
+SLICE_DESCRIPTIONS = {
+    "A": "answerable (golden slice A): the expected outcome is an answer.",
+    "M": "answerable (golden slice M): the expected outcome is an answer.",
+    "V": "edition questions (golden slice V): the answer must label the edition it cites.",
+    "P": "golden slice P: answer-or-refusal cases asked under different caller roles "
+    "(callerRole in the input).",
+    "U": "unanswerable (golden slice U): the expected outcome is a refusal.",
+    "A+M": 'A and M together: Footnote\'s scorecard row "Answered or partial (A, M)".',
+    "A+M+V": "A, M and V together: the slices the sentence-support rate is reported on.",
+}
 
 
 def text_of(row: dict[str, Any]) -> str:
@@ -157,12 +182,17 @@ def suite_from_golden(golden: list[dict[str, Any]], *, judged: bool = False) -> 
             "(`yardstick footnote suite --judged`).",
             scorers=[*SCORERS, JUDGE_SCORER],
             items=items,
+            descriptions=Descriptions(scorers=SCORER_DESCRIPTIONS, slices=SLICE_DESCRIPTIONS),
         )
     return Suite(
         name=SUITE_NAME,
         description="Footnote's golden set (eval/golden.json), mapped by `yardstick footnote suite`.",
         scorers=SCORERS,
         items=items,
+        descriptions=Descriptions(
+            scorers={k: v for k, v in SCORER_DESCRIPTIONS.items() if k != JUDGE_KEY},
+            slices=SLICE_DESCRIPTIONS,
+        ),
     )
 
 

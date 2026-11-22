@@ -8,6 +8,7 @@ from yardstick.adapters.base import Adapter, ReportsRunMeta, RunMeta
 from yardstick.clock import Clock, SystemClock
 from yardstick.models import (
     LLM_JUDGE,
+    Descriptions,
     Item,
     ItemResult,
     LabelJudge,
@@ -127,6 +128,15 @@ def build_run(
         "git_sha": git_sha,
         "items": [r.model_dump(mode="json") for r in results],
     }
+    descriptions = None
+    if suite.descriptions is not None:
+        keys = {spec.expected_key for spec in suite.scorers}
+        slices = {name for item in suite.items for name in item.slices}
+        d = Descriptions(
+            scorers={k: v for k, v in sorted(suite.descriptions.scorers.items()) if k in keys},
+            slices={k: v for k, v in sorted(suite.descriptions.slices.items()) if k in slices},
+        )
+        descriptions = d if (d.scorers or d.slices) else None
     cost = None if reported_cost_usd is None else round(reported_cost_usd, 6)
     if cost is not None:
         payload["reported_cost_usd"] = cost
@@ -147,6 +157,7 @@ def build_run(
         reported_cost_usd=cost,
         judges=judges,
         label_judges=dict(sorted(label_judges.items())),
+        descriptions=descriptions,
     )
 
 

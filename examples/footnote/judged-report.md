@@ -1,17 +1,9 @@
-# Yardstick report — footnote-golden-judged
+# Yardstick report: footnote-golden-judged
 
 **Gate: FAILED**
 
-| | |
-|---|---|
-| Run | `sha256:50de6cd321b9d228` |
-| Suite | `footnote-golden-judged` (`sha256:9f0f55fdea7d`) |
-| Target | `footnote-hybrid-sonnet-theta-on` (results-file) |
-| Model | claude-sonnet-5-5 |
-| Prompt hash | not reported |
-| Git SHA | not reported |
-| Started | 2026-11-16T00:00:00Z |
-| Items | 41 (0 target errors) |
+- `rate:refusal[A+M]`: 63.6% (floor 90.0%)
+- `pass_rate[U]`: 87.5% (floor 90.0%)
 
 ## Summary
 
@@ -23,6 +15,38 @@
 | Latency p95 | not reported |
 | Cost total | $0.633310 (run total reported by target) |
 | Cost per item | $0.015447 (run total reported by target) |
+
+## Key
+
+- `judge`: report-only llm-judge. Footnote's committed sentence verdicts, replayed; it gates only when the judge is calibrated (YS-05).
+- `out-of-scope`: hit = refused with code OUT\_OF\_SCOPE, on the item that expects it.
+- `pre-call`: report-only. hit = refused before any model call (NO\_RELEVANT\_PASSAGE, D-28).
+- `refusal`: hit = the expected outcome: answered or partial where the golden set expects an answer, refused where it expects a refusal. On A+M a hit means answered or partial; it is not a refusal rate.
+- `refusal-code`: report-only. hit = refused with the refusal code the golden set expects (U items).
+- `support`: report-only, judge-derived. Share of answer sentences Footnote's judge labelled supported (schema\_invalid left out); it gates only when that judge is calibrated (YS-05).
+
+Slices:
+
+- `A`: answerable (golden slice A): the expected outcome is an answer.
+- `A+M`: A and M together: Footnote's scorecard row "Answered or partial (A, M)".
+- `A+M+V`: A, M and V together: the slices the sentence-support rate is reported on.
+- `M`: answerable (golden slice M): the expected outcome is an answer.
+- `P`: golden slice P: answer-or-refusal cases asked under different caller roles (callerRole in the input).
+- `U`: unanswerable (golden slice U): the expected outcome is a refusal.
+- `V`: edition questions (golden slice V): the answer must label the edition it cites.
+
+## Run
+
+| Field | Value |
+|---|---|
+| Run | `sha256:50de6cd321b9d228` |
+| Suite | `footnote-golden-judged` (`sha256:9f0f55fdea7d`) |
+| Target | `footnote-hybrid-sonnet-theta-on` (results-file) |
+| Model | claude-sonnet-5-5 |
+| Prompt hash | not reported |
+| Git SHA | not reported |
+| Started | 2026-11-16T00:00:00Z |
+| Items | 41 (0 target errors) |
 
 ## Rates
 
@@ -57,7 +81,7 @@ LLM-judge scores are report-only per item; a gate rule on a judge rate gates onl
 | U | 8 | 87.5% | 87.5% |
 | V | 6 | 33.3% | 33.3% |
 
-### Rates by slice
+<details><summary>Rates by slice (27 rows)</summary>
 
 | Slice | Scorer | Items | Rate |
 |---|---|---|---|
@@ -88,6 +112,8 @@ LLM-judge scores are report-only per item; a gate rule on a judge rate gates onl
 | V | `pre-call (report-only)` | 6 | 66.7% (4/6) |
 | V | `refusal` | 6 | 33.3% (2/6) |
 | V | `support (report-only)` | 2 | 100.0% (4/4) |
+
+</details>
 
 ## Gate
 

@@ -83,7 +83,7 @@ def test_report_and_compare_commands(tmp_path: Path) -> None:
     assert "newly failing: inv-003, inv-006, inv-009" in cmp.output
     rep = runner.invoke(app, ["report", str(b), "-b", str(a), "-g", str(GATES / "extraction.yaml")])
     assert rep.exit_code == 0, rep.output
-    assert rep.output.startswith("# Yardstick report — extraction")
+    assert rep.output.startswith("# Yardstick report: extraction")  # title as in HTML (PRD-F, D-89)
 
 
 def test_bad_inputs_exit_2(tmp_path: Path) -> None:

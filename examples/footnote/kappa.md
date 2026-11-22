@@ -4,32 +4,48 @@ Source: shanelabountyai/footnote @ 3c9b0c7. Inputs: `eval/grades.md`, `eval/grad
 
 **19 match, 0 differ, 5 not reproducible.**
 
-| Set | Judge | Figure | Footnote (doc) | Yardstick | Status | Note |
-|---|---|---|---|---|---|---|
-| sheet-1 | opus | n | n 20 | 20 | match | reference 20 |
-| sheet-1 | opus | raw | raw agreement 90% | 90% | match | reference 90% |
-| sheet-1 | opus | p_e | p_e 0.820 | 0.820 | match | reference 0.820 |
-| sheet-1 | opus | kappa | κ 0.44 | 0.44 | match | reference 0.44 |
-| sheet-1 | opus | disagree | S-01, S-14 | S-01, S-14 | match | reference S-01, S-14 |
-| sheet-1 | opus | human_counts | 18 supported, 2 partial (S-01, S-11), 0 unsupported | 18 supported, 2 partial, 0 unsupported | match | reference 18 supported, 2 partial, 0 unsupported |
-| sheet-2 | opus | n | n 20 | 20 | match | reference 20 |
-| sheet-2 | opus | raw | raw 75% | 75% | match | reference 75% |
-| sheet-2 | opus | p_e | p_e 0.750 | 0.750 | match | reference 0.750 |
-| sheet-2 | opus | kappa | κ 0.00 | 0.00 | match | reference 0.00 |
-| sheet-2 | opus | misses | 5 of 20 | 5 | match | reference 5 |
-| sheet-2 | opus | disagree | S-22, S-23, S-31, S-33, S-39 | S-22, S-23, S-31, S-33, S-39 | match | reference S-22, S-23, S-31, S-33, S-39 |
-| pooled | opus | n | n 40 | 40 | match | reference 40 |
-| pooled | opus | raw | raw 83% | 83% | match | reference 83% |
-| pooled | opus | p_e | p_e 0.790 | 0.790 | match | reference 0.790 |
-| pooled | opus | kappa | κ 0.17 | 0.17 | match | reference 0.17 |
-| pooled | opus | kappa | κ 0.17 | 0.17 | match | reference 0.17 |
-| pooled | opus | n | n 40 | 40 | match | reference 40 |
-| pooled | opus | raw | raw agreement 83% | 83% | match | reference 83% |
-| sheet-1 | sonnet | n | n 15 | — | not reproducible | needs the Sonnet re-judge verdicts (SentenceJudgment rows of run `rejudge:claude-sonnet-5-5:2026-10-23T1646`); they live only in Footnote's database and no committed file holds them |
-| sheet-1 | sonnet | raw | raw 87% | — | not reproducible | needs the Sonnet re-judge verdicts (SentenceJudgment rows of run `rejudge:claude-sonnet-5-5:2026-10-23T1646`); they live only in Footnote's database and no committed file holds them |
-| sheet-1 | sonnet | p_e | p_e 0.876 | — | not reproducible | needs the Sonnet re-judge verdicts (SentenceJudgment rows of run `rejudge:claude-sonnet-5-5:2026-10-23T1646`); they live only in Footnote's database and no committed file holds them |
-| sheet-1 | sonnet | kappa | κ −0.07 | — | not reproducible | needs the Sonnet re-judge verdicts (SentenceJudgment rows of run `rejudge:claude-sonnet-5-5:2026-10-23T1646`); they live only in Footnote's database and no committed file holds them |
-| sheet-1 | sonnet | disagree | S-11, S-14 | — | not reproducible | needs the Sonnet re-judge verdicts (SentenceJudgment rows of run `rejudge:claude-sonnet-5-5:2026-10-23T1646`); they live only in Footnote's database and no committed file holds them |
+Each row is one figure as one quoted line of Footnote's docs records it (column Quote; the quotes
+are listed under the table). A figure recorded by two docs is checked against each, which is why
+the pooled Opus n, raw agreement and kappa appear twice, once per quote.
+
+| Quote | Set | Judge | Figure | Footnote (doc) | Yardstick | Status | Note |
+|---|---|---|---|---|---|---|---|
+| Q1 | sheet-1 | opus | n | n 20 | 20 | match |  |
+| Q1 | sheet-1 | opus | raw | raw agreement 90% | 90% | match |  |
+| Q1 | sheet-1 | opus | p_e | p_e 0.820 | 0.820 | match |  |
+| Q1 | sheet-1 | opus | kappa | κ 0.44 | 0.44 | match |  |
+| Q1 | sheet-1 | opus | disagree | S-01, S-14 | S-01, S-14 | match |  |
+| Q2 | sheet-1 | opus | human_counts | 18 supported, 2 partial (S-01, S-11), 0 unsupported | 18 supported, 2 partial, 0 unsupported | match |  |
+| Q3 | sheet-2 | opus | n | n 20 | 20 | match |  |
+| Q3 | sheet-2 | opus | raw | raw 75% | 75% | match |  |
+| Q3 | sheet-2 | opus | p_e | p_e 0.750 | 0.750 | match |  |
+| Q3 | sheet-2 | opus | kappa | κ 0.00 | 0.00 | match |  |
+| Q4 | sheet-2 | opus | misses | 5 of 20 | 5 | match |  |
+| Q4 | sheet-2 | opus | disagree | S-22, S-23, S-31, S-33, S-39 | S-22, S-23, S-31, S-33, S-39 | match |  |
+| Q5 | pooled | opus | n | n 40 | 40 | match |  |
+| Q5 | pooled | opus | raw | raw 83% | 83% | match |  |
+| Q5 | pooled | opus | p_e | p_e 0.790 | 0.790 | match |  |
+| Q5 | pooled | opus | kappa | κ 0.17 | 0.17 | match |  |
+| Q6 | pooled | opus | kappa | κ 0.17 | 0.17 | match |  |
+| Q6 | pooled | opus | n | n 40 | 40 | match |  |
+| Q6 | pooled | opus | raw | raw agreement 83% | 83% | match |  |
+| Q7 | sheet-1 | sonnet | n | n 15 | — | not reproducible | [a] |
+| Q7 | sheet-1 | sonnet | raw | raw 87% | — | not reproducible | [a] |
+| Q7 | sheet-1 | sonnet | p_e | p_e 0.876 | — | not reproducible | [a] |
+| Q7 | sheet-1 | sonnet | kappa | κ −0.07 | — | not reproducible | [a] |
+| Q7 | sheet-1 | sonnet | disagree | S-11, S-14 | — | not reproducible | [a] |
+
+[a] needs the Sonnet re-judge verdicts (SentenceJudgment rows of run `rejudge:claude-sonnet-5-5:2026-10-23T1646`); they live only in Footnote's database and no committed file holds them
+
+Quotes (verbatim in `fixtures/footnote/kappa-sources.md`):
+
+- Q1: **Opus: κ 0.44, n 20, raw agreement 90%, p_e 0.820.** It disagrees on S-01 (Shane partial, judge supported) and S-14 (Shane supported, judge partial).
+- Q2: **18 supported, 2 partial (S-01, S-11), 0 unsupported**
+- Q3: **Sheet 2 (unassisted, Opus): n 20, raw 75%, p_e 0.750, κ 0.00.**
+- Q4: **miss rate: 5 of 20 judge-`supported` sentences Shane would not support** (S-23, S-31 unsupported; S-22, S-33, S-39 partial)
+- Q5: **Pooled (Opus): n 40, raw 83%, p_e 0.790, κ 0.17**
+- Q6: κ 0.17 n 40, raw agreement 83%
+- Q7: **Sonnet: κ −0.07, n 15, raw 87%, p_e 0.876.** It disagrees on S-11 (Shane partial, judge supported: it missed the wages condition) and S-14.
 
 ## As `eval:kappa` prints it (Opus), recomputed by Yardstick
 

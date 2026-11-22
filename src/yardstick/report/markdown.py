@@ -97,6 +97,10 @@ class ReportData:
     failing_total: int
     failing_more: bool
     not_scored: list[str]
+    why: list[tuple[str, str]]
+    cross_target: str | None
+    key_scorers: list[tuple[str, str]]
+    key_slices: list[tuple[str, str]]
     version: str
 
 
@@ -247,6 +251,25 @@ def build(
             )
         )
 
+    # First screen (PRD-F): why the gate failed, one line per failing gating rule, in the PRD-B wording.
+    why = []
+    if gate and not gate.passed:
+        for rr in gate.rules:
+            if rr.report_only or rr.passed:
+                continue
+            failing_checks = [check_text(rr.rule.metric, c) for c in rr.checks if not c.passed]
+            why.append((code(rr.rule.label), cell("; ".join(failing_checks))))
+    cross = None
+    if baseline is not None and baseline.target.name != run.target.name:
+        cross = baseline.target.name
+    desc = run.descriptions
+    key_scorers = []
+    key_slices = []
+    if desc is not None:
+        shown_keys = set(m.rates) | {k[5:] for k, _ in deltas if k.startswith("rate:")}
+        key_scorers = [(code(k), cell(v)) for k, v in desc.scorers.items() if k in shown_keys]
+        key_slices = [(code(k), cell(v)) for k, v in desc.slices.items() if k in m.slices]
+
     return ReportData(
         run=run,
         baseline=baseline,
@@ -263,6 +286,10 @@ def build(
         failing_total=len(failing),
         failing_more=len(failing) > MAX_FAILING_ROWS,
         not_scored=[code(i) for i in not_scored[:MAX_FAILING_ROWS]],
+        why=why,
+        cross_target=cross,
+        key_scorers=key_scorers,
+        key_slices=key_slices,
         version=__version__,
     )
 

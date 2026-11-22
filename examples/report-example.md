@@ -1,18 +1,9 @@
-# Yardstick report — support-bot
+# Yardstick report: support-bot
 
 **Gate: FAILED**
 
-| | |
-|---|---|
-| Run | `sha256:45f2d7e506b4ea80` |
-| Suite | `support-bot` (`sha256:1f333f1cc5e3`) |
-| Target | `fake` (command) |
-| Model | fake-model-v1 |
-| Prompt hash | sha256:example |
-| Git SHA | not reported |
-| Started | 2026-11-14T00:00:00Z |
-| Items | 12 (0 target errors) |
-| Baseline | `sha256:8452a0673b73cfd5` |
+- `pass_rate`: 58.3% (floor 85.0%); dropped 41.7 pt (max 2.0 pt)
+- `pass_rate[refusal]`: 50.0% (floor 100.0%)
 
 ## Summary
 
@@ -24,6 +15,20 @@
 | Latency p95 | 1428 ms | 714 ms | +714 ms |
 | Cost total | $0.006239 | $0.006239 | ±$0.000000 |
 | Cost per item | $0.000520 | $0.000520 | ±$0.000000 |
+
+## Run
+
+| Field | Value |
+|---|---|
+| Run | `sha256:45f2d7e506b4ea80` |
+| Suite | `support-bot` (`sha256:1f333f1cc5e3`) |
+| Target | `fake` (command) |
+| Model | fake-model-v1 |
+| Prompt hash | sha256:example |
+| Git SHA | not reported |
+| Started | 2026-11-14T00:00:00Z |
+| Items | 12 (0 target errors) |
+| Baseline | `sha256:8452a0673b73cfd5` (`fake`) |
 
 ## Rates
 
@@ -43,7 +48,7 @@ Per scorer: hits / total over the items it applied to. Report-only scorers never
 | faq | 4 | 50.0% | 79.2% | −50.0 pt |
 | refusal | 4 | 50.0% | 50.0% | −50.0 pt |
 
-### Rates by slice
+<details><summary>Rates by slice (7 rows)</summary>
 
 | Slice | Scorer | Items | Rate | Change |
 |---|---|---|---|---|
@@ -54,6 +59,8 @@ Per scorer: hits / total over the items it applied to. Report-only scorers never
 | faq | `contains-all` | 4 | 75.0% (3/4) | −25.0 pt |
 | faq | `refusal-expected` | 4 | 100.0% (4/4) | ±0.0 pt |
 | refusal | `refusal-expected` | 4 | 50.0% (2/4) | −50.0 pt |
+
+</details>
 
 ## Gate
 

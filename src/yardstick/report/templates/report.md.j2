@@ -1,18 +1,13 @@
-# Yardstick report — {{ run.suite_name | text }}
+# Yardstick report: {{ run.suite_name | text }}
 
 {{ "**Gate: PASSED**" if gate and gate.passed else ("**Gate: FAILED**" if gate else "") }}
 
-| | |
-|---|---|
-| Run | {{ run.run_id | code }} |
-| Suite | {{ run.suite_name | code }} ({{ run.suite_hash[:19] | code }}) |
-| Target | {{ run.target.name | code }} ({{ run.target.kind | text }}) |
-| Model | {{ (run.model or "not reported") | text }} |
-| Prompt hash | {{ (run.prompt_hash or "not reported") | text }} |
-| Git SHA | {{ (run.git_sha or "not reported") | text }} |
-| Started | {{ run.started_at | text }} |
-| Items | {{ m.n_items }} ({{ m.n_errors }} target error{{ "" if m.n_errors == 1 else "s" }}{% if m.n_not_scored %}, {{ m.n_not_scored }} not scored{% endif %}) |
-{% if baseline %}| Baseline | {{ baseline.run_id | code }} |
+{% for label, text in why %}
+- {{ label }}: {{ text }}
+{% endfor %}
+
+{% if cross_target %}
+> Compared against a different target: {{ cross_target | code(table=False) }}. Each change is this target against that one, not a before and after.
 {% endif %}
 {% for w in warnings %}
 > **Warning:** {{ w | text }}
@@ -26,6 +21,37 @@
 {% for row in summary_rows -%}
 | {{ row.label }} | {{ row.value }}{% if comparison %} | {{ row.base }} | {{ row.delta }}{% endif %} |
 {% endfor %}
+
+{% if key_scorers or key_slices %}
+## Key
+
+{% for k, v in key_scorers %}
+- {{ k }}: {{ v }}
+{% endfor %}
+{% if key_slices %}
+
+Slices:
+
+{% for k, v in key_slices %}
+- {{ k }}: {{ v }}
+{% endfor %}
+{% endif %}
+{% endif %}
+
+## Run
+
+| Field | Value |
+|---|---|
+| Run | {{ run.run_id | code }} |
+| Suite | {{ run.suite_name | code }} ({{ run.suite_hash[:19] | code }}) |
+| Target | {{ run.target.name | code }} ({{ run.target.kind | text }}) |
+| Model | {{ (run.model or "not reported") | text }} |
+| Prompt hash | {{ (run.prompt_hash or "not reported") | text }} |
+| Git SHA | {{ (run.git_sha or "not reported") | text }} |
+| Started | {{ run.started_at | text }} |
+| Items | {{ m.n_items }} ({{ m.n_errors }} target error{{ "" if m.n_errors == 1 else "s" }}{% if m.n_not_scored %}, {{ m.n_not_scored }} not scored{% endif %}) |
+{% if baseline %}| Baseline | {{ baseline.run_id | code }} ({{ baseline.target.name | code }}) |
+{% endif %}
 
 {% if rate_rows %}
 ## Rates
@@ -64,7 +90,7 @@ LLM-judge scores are report-only per item; a gate rule on a judge rate gates onl
 {% endif %}
 
 {% if slice_rate_rows %}
-### Rates by slice
+<details><summary>Rates by slice ({{ slice_rate_rows | length }} rows)</summary>
 
 | Slice | Scorer | Items | Rate{% if comparison %} | Change{% endif %} |
 |---|---|---|---|{% if comparison %}---|{% endif %}
@@ -72,6 +98,8 @@ LLM-judge scores are report-only per item; a gate rule on a judge rate gates onl
 {% for row in slice_rate_rows -%}
 | {{ row.slice }} | {{ row.label }} | {{ row.n }} | {{ row.value }}{% if comparison %} | {{ row.delta }}{% endif %} |
 {% endfor %}
+
+</details>
 {% endif %}
 
 {% if gate %}

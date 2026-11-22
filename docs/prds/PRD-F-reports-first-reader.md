@@ -21,21 +21,24 @@ No hash moves.
 ## Scope
 
 - **Legend.** Suites may carry `descriptions: {scorers: {key: text}, slices: {name: text}}` (additive, and
-  excluded from the suite hash like `description`, D-17). The run does not store it; reports take the suite
-  as an optional input (`report --suite`, `gate --suite`; the action and `make-example.sh` pass it). When
-  present, a "Key" section under the verdict lists the scorers and slices in use with their text. The Footnote
-  suite generator writes descriptions for every scorer and slice (texts from Footnote's scorecard row names
-  and D-23/D-32), e.g. `refusal`: "refused when it should, answered when it should (hit = outcome as
-  expected; on A and M a hit means answered or partial)".
+  excluded from the suite hash like `description`, D-17). As built (D-89), `build_run` copies the
+  descriptions of the scorers and slices in use into the run (additive `Run.descriptions`, left out of the
+  run id), so `gate`, `report` and the action show them with no new flag. When present, a "Key" section after
+  Summary lists the scorers and slices in use with their text. The Footnote suite generator writes
+  descriptions for every scorer and slice, e.g. `refusal`: "hit = the expected outcome: answered or partial
+  where the golden set expects an answer, refused where it expects a refusal. On A+M a hit means answered or
+  partial; it is not a refusal rate."
 - **First screen.** Directly under the verdict: one line per failing gating rule (rule, value, requirement:
   the PRD-B formatter), and, when the baseline's target name differs from the run's,
   `Compared against a different target: <baseline target>`. Run metadata moves below Summary.
-- **Markdown in line with HTML.** Same title ("Yardstick report: x") and verdict wording ("Gate passed" /
-  "Gate failed", bold); "Rates by slice" collapsed in `<details>` in markdown too; the metadata table gets a
-  header row; the baseline target name is shown in markdown.
-- **kappa.md:** the duplicate `pooled | opus` figures are shown once each (a figure recorded by more than one
-  source document is one row with the documents listed); the Note column is empty on a match; repeated
-  reasons become footnote markers defined once under the table.
+- **Markdown in line with HTML.** Same title ("Yardstick report: x"); the markdown verdict line stays
+  `**Gate: PASSED**` / `**Gate: FAILED**` because CI greps for it (D-89); "Rates by slice" collapsed in
+  `<details>` in markdown too; the metadata table gets a header row; the baseline target name is shown in
+  markdown.
+- **kappa.md:** each row names the quoted doc line it is checked against (column Quote, quotes listed under
+  the table), so the two `pooled | opus` checks of the same figure are no longer identical rows and the
+  19-match count is unchanged (D-89); the Note column is empty on a match; repeated reasons become footnote
+  markers defined once under the table.
 - **reproduction.md:** "not reproducible" rows carry a marker (`[1]`...) whose reason is defined once under
   the table; matches are unchanged; counts unchanged.
 
