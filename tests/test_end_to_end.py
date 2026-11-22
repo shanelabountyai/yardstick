@@ -103,3 +103,19 @@ def test_bad_inputs_exit_2(tmp_path: Path) -> None:
     )
     assert res.exit_code == 2
     assert "not found" in res.output
+
+
+def test_license_and_exit_codes_in_help() -> None:
+    """PRD-D: a LICENSE matching pyproject's MIT, and the exit codes in --help (review item 3)."""
+    from pathlib import Path
+
+    from typer.testing import CliRunner
+
+    from yardstick.cli import app
+
+    root = Path(__file__).resolve().parent.parent
+    assert root.joinpath("LICENSE").read_text(encoding="utf-8").startswith("MIT License")
+    assert 'license = { text = "MIT" }' in root.joinpath("pyproject.toml").read_text(encoding="utf-8")
+    for args in (["--help"], ["gate", "--help"]):
+        out = " ".join(CliRunner().invoke(app, args).output.split())
+        assert "Exit codes: 0 ok (gate passed), 1 gate failed" in out and "2 bad input" in out

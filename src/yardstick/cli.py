@@ -47,10 +47,17 @@ from yardstick.scorers.llm_judge import JudgeSession
 from yardstick.suite_check import SuiteChangedError
 from yardstick.suite_io import LoadError, load_gate, load_run, load_suite, save_run
 
+EXIT_CODES_HELP = (
+    "Exit codes: 0 ok (gate passed), 1 gate failed (a regression or a missed threshold), "
+    "2 bad input or a target that could not run."
+)
+
 app = typer.Typer(
     add_completion=False,
     no_args_is_help=True,
     help="Yardstick: baselines, compare and CI regression gates over AI eval runs.",
+    epilog=EXIT_CODES_HELP,
+    pretty_exceptions_show_locals=False,
 )
 baseline_app = typer.Typer(no_args_is_help=True, help="Manage pinned baselines.")
 app.add_typer(baseline_app, name="baseline")
@@ -322,7 +329,7 @@ def _calibrations(cfg: GateConfig, config_path: Path | None, extra: list[Path] |
         raise _fail(f"calibration: {exc}") from exc
 
 
-@app.command()
+@app.command(epilog=EXIT_CODES_HELP)
 def gate(
     run_path: Annotated[Path, typer.Argument(help="Run JSON to gate.")],
     config: Annotated[Path, typer.Option("--config", "-c", help="Gate config (YAML or JSON).")],
@@ -339,7 +346,7 @@ def gate(
     ] = None,
     calibration: Calibrations = None,
 ) -> None:
-    """Evaluate a gate. Exit 0 if it passes, 1 if it fails."""
+    """Evaluate a gate. Exit 0 if it passes, 1 if it fails, 2 on bad input."""
     r = _load_run(run_path)
     try:
         cfg = load_gate(config)

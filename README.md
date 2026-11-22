@@ -6,7 +6,11 @@ Build-log #26. Status: **Phases 1-5 are on `main`** (core; results-file adapter,
 
 ## Quick start
 
+Requirements: [uv](https://docs.astral.sh/uv/) (it fetches Python 3.12, which Yardstick pins) and any `python3` on
+`PATH` for the fake target. Everything below runs offline, with no API key.
+
 ```bash
+git clone https://github.com/shanelabountyai/yardstick.git && cd yardstick
 uv sync
 # run a suite against a command target (any program that reads JSONL items and prints JSONL outputs)
 uv run yardstick run -s fixtures/suites/support-bot.yaml --cmd "python3 fixtures/targets/fake_target.py" \
@@ -18,7 +22,21 @@ uv run yardstick gate runs/degraded.json -c fixtures/gates/support-bot.yaml --re
 uv run yardstick compare runs/healthy.json runs/degraded.json
 ```
 
+The gate step prints the verdict, value first and the requirement in brackets, and exits 1:
+
+```text
+FAIL    pass_rate                    58.3% (floor 85.0%); dropped 41.7 pt (max 2.0 pt)
+FAIL    pass_rate[refusal]           50.0% (floor 100.0%)
+PASS    latency_p95_ms               ok
+gate FAILED
+```
+
+Exit codes, for every command: **0** ok (gate passed), **1** gate failed (a regression or a missed threshold),
+**2** bad input or a target that could not run. The quick start writes `runs/` and `.yardstick/`, both ignored in
+this repo (a project using Yardstick commits its `.yardstick/baselines/`, D-04).
+
 Example output: [`examples/report-example.md`](examples/report-example.md) (regenerate with `examples/make-example.sh`).
+A ten-minute demo script: [`docs/DEMO.md`](docs/DEMO.md).
 
 ## Footnote: reading a real project's eval results
 
@@ -30,9 +48,13 @@ uv run yardstick footnote suite fixtures/footnote/golden.json -o fixtures/footno
 uv run yardstick run -s fixtures/footnote/suite.yaml --mapping footnote --target-name dense-sonnet \
   --results fixtures/footnote/results/answers-dense-claude-sonnet-5-5-theta-off-cd1252c6a407-2026-10-28T0102.json \
   -o runs/dense-sonnet.json
+# exit 1: this cell misses Footnote's own targets (D-32), and no baseline is pinned for it, so the drop check
+# fails closed (D-11)
 uv run yardstick gate runs/dense-sonnet.json -c fixtures/gates/footnote.yaml --html-report runs/report.html
 # replay Footnote's theta gate at another threshold, as its scorecard's θ′ axis does
-uv run yardstick run ... --theta-prime 0.52
+uv run yardstick run -s fixtures/footnote/suite.yaml --mapping footnote --target-name dense-sonnet \
+  --results fixtures/footnote/results/answers-dense-claude-sonnet-5-5-theta-off-cd1252c6a407-2026-10-28T0102.json \
+  --theta-prime 0.52 -o runs/dense-sonnet-theta.json
 # check every number in Footnote's own scorecard that the answers files can support
 uv run yardstick footnote reproduce --results-dir fixtures/footnote/results --golden fixtures/footnote/golden.json \
   --scorecard fixtures/footnote/results/scorecard-cd1252c6a407-2026-10-28.md
@@ -55,10 +77,13 @@ grades clears the floor** (YS-05; default 0.6). Below the floor, or with no cali
 uv run yardstick run -s fixtures/footnote/judge-suite.yaml --mapping footnote --target-name hybrid-sonnet \
   --results fixtures/footnote/results/answers-hybrid-claude-sonnet-5-5-theta-on-cd1252c6a407-2026-10-23T1646.json \
   --judge replay:fixtures/footnote/judge/verdicts-opus-1646.json --judge-budget-usd 0 -o runs/judged.json
-# kappa per grade set and pooled -> a calibration file a gate can use
+# kappa per grade set and pooled -> a calibration file a gate can use. The gate file below already names the
+# committed copy (fixtures/footnote/judge/calibration-opus-1646.json: same judge and figures, only its source line
+# differs), so the next command does not pass --calibration; passing both would be two calibrations (D-84)
 uv run yardstick kappa --grades fixtures/footnote/grades/sheet-1.yaml --grades fixtures/footnote/grades/sheet-2.yaml \
   --run runs/judged.json --key judge -o runs/calibration.json
-uv run yardstick gate runs/judged.json -c fixtures/gates/footnote-judged.yaml   # judge rule: report-only (κ 0.17 < 0.6)
+# exit 1: the A+M and U rules miss Footnote's targets; the judge rule is report-only (κ 0.17 < 0.6)
+uv run yardstick gate runs/judged.json -c fixtures/gates/footnote-judged.yaml
 # the Phase 3 gate: Footnote's eval:kappa figures, reproduced
 uv run yardstick footnote kappa --golden fixtures/footnote/golden.json \
   --answers fixtures/footnote/results/answers-hybrid-claude-sonnet-5-5-theta-on-cd1252c6a407-2026-10-23T1646.json \
@@ -204,9 +229,10 @@ The action installs a pinned `uv` from PyPI and syncs Yardstick from its own ref
 third-party actions (D-43). It runs `yardstick run` and `yardstick gate`, appends the markdown report to the job
 summary, and posts or updates one PR comment per `comment-tag` with `GITHUB_TOKEN` (D-44). It fails the step when
 the gate fails, unless `fail-on-gate: "false"`, and always fails on bad input (exit 2). Outputs: `passed`,
-`exit-code`, `report`, `run`. Other inputs: `run-args`, `calibration`, `html-report-path`, `target-name`, `comment`,
-`install-only` (only put `yardstick` on `PATH`), `http` and `http-url` (an HTTP target; put the variables its
-config names for headers in the job's `env:`). The `action` job in `.github/workflows/ci.yml` tests it on every
+`exit-code`, `report`, `run`. Other inputs: `run-args`, `run-path`, `calibration`, `html-report-path`,
+`target-name`, `comment`, `comment-tag`, `github-token`, `fail-on-gate`, `install-only` (only put `yardstick` on
+`PATH`), `http` and `http-url` (an HTTP target; put the variables its config names for headers in the job's
+`env:`). The `action` job in `.github/workflows/ci.yml` tests it on every
 push: a healthy run must pass, a degraded run must fail, a missing target must exit 2, the fixture HTTP target must
 pass against the command target's baseline, and an HTTP target that is not listening must exit 2.
 
@@ -215,7 +241,7 @@ pass against the command target's baseline, and an HTTP target that is not liste
 - **Scorers** (deterministic): `exact`, `regex`, `json-schema`, `numeric-tolerance`, `contains-all`, `refusal-expected`, `citation-grounded`, `field-equals`, `label-rate`. Any scorer can be `report_only` (measured, never decides pass). **`llm-judge`** (always report-only per item) labels units through a judge behind an interface: replay, or the Anthropic Messages API, under a run-level budget cap.
 - **Calibration**: human grade sets, Cohen's kappa per judge (model + prompt hash), per set and pooled; gates honour YS-05.
 - **Metrics**: pass rate, mean score, per-slice, `rate:<scorer key>` (pooled hits/total, e.g. supported sentences), p50/p95 latency (integer ms), total and per-item cost (USD, 6 dp; a run-level total when the target only reports that). Unreported telemetry is "not reported", never 0.
-- **Gates**: `floor`, `max`, `max_drop` / `max_rise` vs baseline, `min_items`, on any metric including `rate:<key>` per slice. Fail closed. A judge rate gates only when its kappa clears `judge.kappa_floor`.
+- **Gates**: `floor`, `max`, `max_drop` / `max_rise` vs baseline, `min_items`, on any metric including `rate:<key>`, run-wide or per `slice`. Fail closed. A judge rate (an `llm-judge` key, or a `label-rate` key marked `judge: true`) gates only when its kappa clears `judge.kappa_floor` with at least `judge.min_graded` graded units (default 30), from the calibration files in `judge.calibrations`.
 - **Targets**: `command` (JSONL over stdin/stdout), `results-file` (declarative mapping, or the built-in `footnote` mapping) and `http` (one JSON request per item to a configured URL; run only against the local fixture server so far).
 - **Reports**: markdown (PR comments, CI logs) and static HTML (`report --format html`, `gate --html-report`).
 
